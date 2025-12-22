@@ -11,6 +11,8 @@ CATEGORIES = [
     {"name": "實戰建議", "url": "https://fc.bnext.com.tw/category/tips", "file": "tips.xml"},
     {"name": "趨勢解析", "url": "https://fc.bnext.com.tw/category/trends", "file": "trends.xml"},
     {"name": "深度故事", "url": "https://fc.bnext.com.tw/category/stories", "file": "stories.xml"},
+    {"name": "BNET Articles", "url": "https://www.bnext.com.tw/articles", "file": "bnext_articles.xml"},
+    {"name": "BNET AI", "url": "https://www.bnext.com.tw/categories/ai", "file": "bnext_ai.xml"},
 ]
 
 def fetch_category_with_playwright(cat):
@@ -30,7 +32,8 @@ def fetch_category_with_playwright(cat):
             
             # --- 以下部分與之前類似，但現在是從 Playwright 取得的 HTML 中解析 ---
             
-            items = soup.select('div.item-box') 
+            # 找出文章連結（支援不同 bnext 網域：/articles/view/ 或 /article/），選用有標題文字的連結並去重
+            anchors = soup.select('a[href*="/articles/view/"], a[href*="/article/"]')
 
             fg = FeedGenerator()
             fg.id(cat['url'])
@@ -39,31 +42,34 @@ def fetch_category_with_playwright(cat):
             fg.description(f"自動抓取的未來商務 {cat['name']} 頻道 (Playwright)")
             fg.language('zh-TW')
 
-            for item in items[:15]: # 抓取前 15 則
+            seen = set()
+            added = 0
+            # 遍歷 anchors，選用有標題文字的連結
+            for a in anchors:
+                if added >= 15:
+                    break
                 try:
-                    title_tag = item.select_one('h3') or item.select_one('.title')
-                    link_tag = item.select_one('a')
-                    desc_tag = item.select_one('.desc') or item.select_one('.content')
-                    
-                    if not title_tag or not link_tag:
+                    href = a.get('href')
+                    title = a.get_text(strip=True)
+                    if not href or not title:
                         continue
-
-                    title = title_tag.text.strip()
-                    link = link_tag['href']
-                    description = desc_tag.text.strip() if desc_tag else "無描述"
-                    
-                    # 確保連結完整
-                    if link.startswith('/'):
-                        link = "https://fc.bnext.com.tw" + link
+                    # 補全相對路徑
+                    if href.startswith('/'):
+                        href = "https://fc.bnext.com.tw" + href
+                    if href in seen:
+                        continue
+                    seen.add(href)
 
                     fe = fg.add_entry()
-                    fe.id(link)
+                    fe.id(href)
                     fe.title(title)
-                    fe.link(href=link)
-                    fe.description(description)
+                    fe.link(href=href)
+                    fe.description("無描述")
                     fe.pubDate(datetime.datetime.now(datetime.timezone.utc))
+                    added += 1
                 except Exception as e:
                     print(f"單則處理出錯: {e}")
+            print(f"Found {len(anchors)} article anchors, added {added} entries.")
 
             # 確保輸出到 docs/ 以便 GitHub Pages 發佈（或改成別的資料夾視 Pages 設定）
             output_dir = os.environ.get('OUTPUT_DIR', 'docs')
