@@ -25,25 +25,71 @@ DEFAULT_CATEGORIES = [
     {"name": "BNET AI", "url": "https://www.bnext.com.tw/categories/ai"},
 ]
 
+def default_filename_from_url(url):
+    """Try to get a sensible ASCII filename from the URL's last path segment."""
+    try:
+        parts = url.rstrip('/').split('/')
+        last = parts[-1]
+        # keep only safe chars
+        safe = re.sub(r'[^0-9A-Za-z_-]+', '_', last).strip('_')
+        if safe:
+            return safe
+    except Exception:
+        pass
+    return ''
+
+
+def make_ascii_filename(base: str, fallback_index: int = 0) -> str:
+    # base -> slugify then strip non-ascii
+    s = slugify(base)
+    s = re.sub(r'[^0-9a-zA-Z_-]+', '_', s)
+    s = s.strip('_')
+    if not s:
+        s = f"category_{fallback_index}"
+    return s
+
+
 def load_categories(path='categories.json'):
     if os.path.exists(path):
         try:
             with open(path, 'r', encoding='utf-8') as fh:
                 data = json.load(fh)
             # 確保每項都有 name/url 和預設 file
-            for item in data:
+            for idx, item in enumerate(data):
                 if 'name' not in item or 'url' not in item:
                     raise ValueError('每個 category 必須包含 name 與 url')
-                if 'file' not in item or not item.get('file'):
-                    item['file'] = f"{slugify(item['name'])}.xml"
+                # support explicit xml filename via 'xml' field (preferred),
+                # fallback to legacy 'file' for backward compatibility
+                filename = None
+                if item.get('xml'):
+                    filename = item.get('xml')
+                elif item.get('file'):
+                    filename = item.get('file')
+
+                if filename:
+                    # ensure .xml
+                    if not filename.lower().endswith('.xml'):
+                        filename = filename + '.xml'
+                    # sanitize to ASCII-safe filename (warn if sanitized)
+                    safe = re.sub(r'[^0-9A-Za-z._-]+', '_', filename)
+                    if safe != filename:
+                        print(f"Warning: filename '{filename}' contained unsafe characters; sanitized to '{safe}'")
+                    item['file'] = safe
+                else:
+                    # derive from URL path last segment if possible
+                    derived = default_filename_from_url(item['url'])
+                    if derived:
+                        item['file'] = f"{derived}.xml"
+                    else:
+                        item['file'] = f"{make_ascii_filename(item['name'], idx)}.xml"
             print(f"Loaded categories from {path}: {[c['name'] for c in data]}")
             return data
         except Exception as e:
             print(f"讀取 {path} 失敗，使用內建清單: {e}")
     # fallback
-    for item in DEFAULT_CATEGORIES:
+    for idx, item in enumerate(DEFAULT_CATEGORIES):
         if 'file' not in item:
-            item['file'] = f"{slugify(item['name'])}.xml"
+            item['file'] = f"{make_ascii_filename(item['name'], idx)}.xml"
     print("使用預設 categories")
     return DEFAULT_CATEGORIES
 
@@ -63,18 +109,13 @@ def fetch_category_with_playwright(cat):
         page = browser.new_page()
 
         try:
-            # 更寬鬆的 timeout 與重試機制
-            attempts = 3
-            success = False
-            for i in range(attempts):
-                try:
-                    page.goto(cat['url'], wait_until='networkidle', timeout=120000)
-                    success = True
-                    break
-                except Exception as e:
-                    print(f"第 {i+1} 次嘗試導覽 {cat['url']} 失敗: {e}")
-            if not success:
-                raise Exception(f"連續 {attempts} 次導覽失敗")
+            # 如果目標 URL 在 60 秒內沒有回應，就跳過該 URL（等待下一次排程）
+            timeout_ms = 60_000
+            try:
+                page.goto(cat['url'], wait_until='networkidle', timeout=timeout_ms)
+            except Exception as e:
+                print(f"導覽 {cat['url']} 失敗或超時 ({timeout_ms}ms)，已跳過此 category: {e}")
+                return  # 跳過本 category，繼續下一個
 
             html_content = page.content()
             soup = BeautifulSoup(html_content, 'html.parser')
@@ -109,25 +150,26 @@ def fetch_category_with_playwright(cat):
                         continue
                     seen.add(href)
 
-                    # 抓取文章頁面的 meta description 與 image（重試機制與較長 timeout）
+                    # 抓取文章頁面的 meta description 與 image（若在 60s 內沒有回應則跳過該文章）
                     desc = ''
                     image = None
-                    art_attempts = 2
-                    art_success = False
                     article_html = None
-                    for j in range(art_attempts):
+                    art_timeout_ms = 60_000
+                    art_page = None
+                    try:
                         art_page = browser.new_page()
-                        try:
-                            art_page.goto(href, wait_until='domcontentloaded', timeout=120000)
-                            article_html = art_page.content()
-                            art_success = True
-                            break
-                        except Exception as e:
-                            print(f"第 {j+1} 次嘗試導覽文章 {href} 失敗: {e}")
-                        finally:
-                            art_page.close()
+                        art_page.goto(href, wait_until='domcontentloaded', timeout=art_timeout_ms)
+                        article_html = art_page.content()
+                    except Exception as e:
+                        print(f"導覽文章 {href} 失敗或超時 ({art_timeout_ms}ms)，跳過此文章: {e}")
+                    finally:
+                        if art_page:
+                            try:
+                                art_page.close()
+                            except Exception:
+                                pass
 
-                    if art_success and article_html:
+                    if article_html:
                         art_soup = BeautifulSoup(article_html, 'html.parser')
                         # meta description
                         meta = art_soup.find('meta', attrs={'name': 'description'})
@@ -216,6 +258,10 @@ def write_index(output_dir='docs'):
 
 if __name__ == "__main__":
     out_dir = os.environ.get('OUTPUT_DIR', 'docs')
+    skip_index = os.environ.get('SKIP_INDEX', 'false').lower() in ('1','true','yes')
     for cat in CATEGORIES:
         fetch_category_with_playwright(cat)
-    write_index(out_dir)
+    if not skip_index:
+        write_index(out_dir)
+    else:
+        print("SKIP_INDEX is set; skipping generation of docs/index.html")
