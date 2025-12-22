@@ -5,15 +5,52 @@ import datetime
 import os
 from playwright.sync_api import sync_playwright
 
-# 定義目標分類與輸出的檔名
-CATEGORIES = [
-    {"name": "精選內容", "url": "https://fc.bnext.com.tw/category/picks", "file": "picks.xml"},
-    {"name": "實戰建議", "url": "https://fc.bnext.com.tw/category/tips", "file": "tips.xml"},
-    {"name": "趨勢解析", "url": "https://fc.bnext.com.tw/category/trends", "file": "trends.xml"},
-    {"name": "深度故事", "url": "https://fc.bnext.com.tw/category/stories", "file": "stories.xml"},
-    {"name": "BNET Articles", "url": "https://www.bnext.com.tw/articles", "file": "bnext_articles.xml"},
-    {"name": "BNET AI", "url": "https://www.bnext.com.tw/categories/ai", "file": "bnext_ai.xml"},
+# 讀取 categories.json（若不存在則回退到內建清單）
+import json
+import re
+
+def slugify(name: str) -> str:
+    s = name.lower()
+    s = re.sub(r"[^0-9a-z\u4e00-\u9fff]+", "_", s)
+    s = s.strip("_")
+    # 也可將中文轉為拼音，但簡單做法為保留並用 ascii-safe filename
+    return s
+
+DEFAULT_CATEGORIES = [
+    {"name": "精選內容", "url": "https://fc.bnext.com.tw/category/picks"},
+    {"name": "實戰建議", "url": "https://fc.bnext.com.tw/category/tips"},
+    {"name": "趨勢解析", "url": "https://fc.bnext.com.tw/category/trends"},
+    {"name": "深度故事", "url": "https://fc.bnext.com.tw/category/stories"},
+    {"name": "BNET Articles", "url": "https://www.bnext.com.tw/articles"},
+    {"name": "BNET AI", "url": "https://www.bnext.com.tw/categories/ai"},
 ]
+
+def load_categories(path='categories.json'):
+    if os.path.exists(path):
+        try:
+            with open(path, 'r', encoding='utf-8') as fh:
+                data = json.load(fh)
+            # 確保每項都有 name/url 和預設 file
+            for item in data:
+                if 'name' not in item or 'url' not in item:
+                    raise ValueError('每個 category 必須包含 name 與 url')
+                if 'file' not in item or not item.get('file'):
+                    item['file'] = f"{slugify(item['name'])}.xml"
+            print(f"Loaded categories from {path}: {[c['name'] for c in data]}")
+            return data
+        except Exception as e:
+            print(f"讀取 {path} 失敗，使用內建清單: {e}")
+    # fallback
+    for item in DEFAULT_CATEGORIES:
+        if 'file' not in item:
+            item['file'] = f"{slugify(item['name'])}.xml"
+    print("使用預設 categories")
+    return DEFAULT_CATEGORIES
+
+# 使用 load_categories() 取得 CATEGORIES
+CATEGORIES = load_categories()
+
+
 
 from urllib.parse import urljoin
 
