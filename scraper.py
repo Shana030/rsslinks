@@ -65,8 +65,12 @@ def fetch_category_with_playwright(cat):
                 except Exception as e:
                     print(f"單則處理出錯: {e}")
 
-            fg.rss_file(cat['file'])
-            print(f"已生成: {cat['file']}")
+            # 確保輸出到 docs/ 以便 GitHub Pages 發佈（或改成別的資料夾視 Pages 設定）
+            output_dir = os.environ.get('OUTPUT_DIR', 'docs')
+            os.makedirs(output_dir, exist_ok=True)
+            output_path = os.path.join(output_dir, cat['file'])
+            fg.rss_file(output_path)
+            print(f"已生成: {output_path}")
             
         except Exception as e:
             print(f"抓取 {cat['url']} 失敗: {e}")

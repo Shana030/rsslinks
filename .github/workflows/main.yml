@@ -30,6 +30,6 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add *.xml # 添加所有生成的 XML 文件
+          git add docs/*.xml || true # 添加所有生成到 docs 的 XML 文件
           git commit -m "Auto-update RSS feeds (Playwright)" || exit 0
           git push
