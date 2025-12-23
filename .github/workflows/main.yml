@@ -39,6 +39,6 @@ jobs:
           done
           echo "---------------------------------"
 
-      - name: Note: No auto-push (manual control)
+      - name: "Note: No auto-push (manual control)"
         run: |
           echo "Auto push is disabled. If you want to push updated XML, run scraper.py locally and git add/commit/push the docs/ files."
