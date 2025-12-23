@@ -33,10 +33,10 @@ jobs:
         run: |
           python -m playwright install chromium
 
-      - name: Run scraper (skip index)
+      - name: Run scraper (auto update index)
         run: |
           export OUTPUT_DIR=docs
-          export SKIP_INDEX=true
+          export SKIP_INDEX=false
           python scraper.py
 
       - name: Show generated feed counts

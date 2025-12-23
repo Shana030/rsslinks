@@ -3,3 +3,4 @@ beautifulsoup4
 feedgen
 playwright
 python-dateutil
+pytz

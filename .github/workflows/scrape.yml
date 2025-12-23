@@ -41,7 +41,7 @@ jobs:
       - name: Run scraper
         env:
           OUTPUT_DIR: docs
-          SKIP_INDEX: 'true'  # index 手動更新
+          SKIP_INDEX: 'false'  # 自動更新 index.html
         run: |
           python scraper.py
 

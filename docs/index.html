@@ -3,22 +3,69 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>rsslinks</title>
+  <title>RSS Links - 自動產生的 RSS 訂閱源</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; line-height: 1.6; }
+    h1 { color: #333; }
+    .feed-item { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; }
+    .feed-item h3 { margin: 0 0 10px 0; }
+    .feed-item a { color: #0066cc; text-decoration: none; font-weight: 500; }
+    .feed-item a:hover { text-decoration: underline; }
+    .feed-meta { color: #666; font-size: 0.9em; margin-top: 5px; }
+    .source-url { color: #888; font-size: 0.85em; word-break: break-all; }
+    footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 0.9em; }
+  </style>
 </head>
 <body>
-  <h1>rsslinks</h1>
-  <p>自動產生的 RSS 檔案</p>
-  <ul>
-    <li><a href="./bnext_ai.xml">bnext_ai.xml</a> - 6 items - updated 2025-12-23 14:02:43 CST</li>
-    <li><a href="./bnext_articles.xml">bnext_articles.xml</a> - 6 items - updated 2025-12-23 14:02:37 CST</li>
-    <li><a href="./picks.xml">picks.xml</a> - 12 items - updated 2025-12-23 14:00:55 CST</li>
-    <li><a href="./stories.xml">stories.xml</a> - 12 items - updated 2025-12-23 14:02:31 CST</li>
-    <li><a href="./tips.xml">tips.xml</a> - 12 items - updated 2025-12-23 14:01:13 CST</li>
-    <li><a href="./trends.xml">trends.xml</a> - 12 items - updated 2025-12-23 10:13:47 CST</li>
-    <li><a href="./vocus_aiux.xml">vocus_aiux.xml</a> - 20 items - updated 2025-12-23 10:15:40 CST</li>
-    <li><a href="./bnext_articles.xml">bnext_articles.xml</a></li>
-    <li><a href="./bnext_ai.xml">bnext_ai.xml</a></li>
-  </ul>
-  <p>Updated: 2025-12-23 14:32:53 CST</p>
+  <h1>RSS Links</h1>
+  <p>自動產生的 RSS 訂閱源，每小時更新</p>
+  <div class="feed-item">
+    <h3><a href="./picks.xml">精選內容</a></h3>
+    <div class="feed-meta">12 篇文章 • 更新於 2025-12-23 14:00:55 CST</div>
+    <div class="source-url">來源: <a href="https://fc.bnext.com.tw/category/picks" target="_blank">https://fc.bnext.com.tw/category/picks</a></div>
+  </div>
+  <div class="feed-item">
+    <h3><a href="./tips.xml">實戰建議</a></h3>
+    <div class="feed-meta">12 篇文章 • 更新於 2025-12-23 14:01:13 CST</div>
+    <div class="source-url">來源: <a href="https://fc.bnext.com.tw/category/tips" target="_blank">https://fc.bnext.com.tw/category/tips</a></div>
+  </div>
+  <div class="feed-item">
+    <h3><a href="./trends.xml">趨勢解析</a></h3>
+    <div class="feed-meta">13 篇文章 • 更新於 2025-12-24 03:43:42 CST</div>
+    <div class="source-url">來源: <a href="https://fc.bnext.com.tw/category/trends" target="_blank">https://fc.bnext.com.tw/category/trends</a></div>
+  </div>
+  <div class="feed-item">
+    <h3><a href="./stories.xml">深度故事</a></h3>
+    <div class="feed-meta">12 篇文章 • 更新於 2025-12-23 14:02:31 CST</div>
+    <div class="source-url">來源: <a href="https://fc.bnext.com.tw/category/stories" target="_blank">https://fc.bnext.com.tw/category/stories</a></div>
+  </div>
+  <div class="feed-item">
+    <h3><a href="./bnext_articles.xml">BNET Articles</a></h3>
+    <div class="feed-meta">7 篇文章 • 更新於 2025-12-24 03:43:42 CST</div>
+    <div class="source-url">來源: <a href="https://www.bnext.com.tw/articles" target="_blank">https://www.bnext.com.tw/articles</a></div>
+  </div>
+  <div class="feed-item">
+    <h3><a href="./bnext_ai.xml">BNET AI</a></h3>
+    <div class="feed-meta">7 篇文章 • 更新於 2025-12-24 03:43:42 CST</div>
+    <div class="source-url">來源: <a href="https://www.bnext.com.tw/categories/ai" target="_blank">https://www.bnext.com.tw/categories/ai</a></div>
+  </div>
+  <div class="feed-item">
+    <h3><a href="./vocus_aiux.xml">林位青｜AI / UX｜方格子 vocus</a></h3>
+    <div class="feed-meta">20 篇文章 • 更新於 2025-12-23 10:15:40 CST</div>
+    <div class="source-url">來源: <a href="https://vocus.cc/salon/alan623/room/aiux" target="_blank">https://vocus.cc/salon/alan623/room/aiux</a></div>
+  </div>
+  <div class="feed-item">
+    <h3><a href="./bnext_articles.xml">數位時代｜最新新聞</a></h3>
+    <div class="feed-meta">7 篇文章 • 更新於 2025-12-24 03:43:42 CST</div>
+    <div class="source-url">來源: <a href="https://www.bnext.com.tw/articles" target="_blank">https://www.bnext.com.tw/articles</a></div>
+  </div>
+  <div class="feed-item">
+    <h3><a href="./bnext_ai.xml">數位時代｜AI與大數據</a></h3>
+    <div class="feed-meta">7 篇文章 • 更新於 2025-12-24 03:43:42 CST</div>
+    <div class="source-url">來源: <a href="https://www.bnext.com.tw/categories/ai" target="_blank">https://www.bnext.com.tw/categories/ai</a></div>
+  </div>
+  <footer>
+    <p>最後生成時間: 2025-12-24 04:00:39 CST</p>
+  </footer>
 </body>
 </html>

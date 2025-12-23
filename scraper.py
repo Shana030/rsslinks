@@ -186,6 +186,20 @@ def _format_datetime_for_feed(dt):
 def fetch_category_with_playwright(cat):
     print(f"正在使用 Playwright 抓取: {cat['name']}...")
 
+    # 取得今日日期（台灣時區）
+    import pytz
+    tw_tz = pytz.timezone('Asia/Taipei')
+    today_tw = datetime.datetime.now(tw_tz).date()
+
+    # 檢查是否為初始化模式（抓取前N篇）
+    initial_fetch = os.environ.get('INITIAL_FETCH', 'false').lower() in ('1', 'true', 'yes')
+    max_items = int(os.environ.get('MAX_ITEMS', '100')) if initial_fetch else None
+
+    if initial_fetch:
+        print(f"初始化模式: 抓取前 {max_items} 篇文章")
+    else:
+        print(f"只抓取今日發佈的文章: {today_tw}")
+
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True) # 在 Actions 中通常為 True
         page = browser.new_page()
@@ -212,6 +226,8 @@ def fetch_category_with_playwright(cat):
             new_items = []
             seen = set()
             added = 0
+            skipped_old = 0
+            skipped_existing = 0
 
             for a in anchors:
                 try:
@@ -225,9 +241,10 @@ def fetch_category_with_playwright(cat):
                     seen.add(href)
                     if href in existing_ids:
                         # 已存在，不再加入
+                        skipped_existing += 1
                         continue
 
-                    # 抓取文章頁面
+                    # 抓取文章頁面以取得發佈日期
                     desc = ''
                     image = None
                     pubdate = None
@@ -275,14 +292,29 @@ def fetch_category_with_playwright(cat):
                     if not pubdate:
                         pubdate = datetime.datetime.now(datetime.timezone.utc)
 
+                    # 檢查是否為今日發佈（僅在非初始化模式）
+                    if not initial_fetch:
+                        pubdate_tw = pubdate.astimezone(tw_tz).date()
+                        if pubdate_tw != today_tw:
+                            print(f"跳過非今日文章: {title[:40]} (發佈日期: {pubdate_tw})")
+                            skipped_old += 1
+                            continue
+
                     new_items.append({'id': href, 'link': href, 'title': title, 'description': desc, 'pubDate': pubdate, 'image': image})
                     added += 1
                     print(f"新增條目: title='{title[:40]}', href={href}, desc={'有' if desc else '無'}, image={'有' if image else '無'}, pub={pubdate})")
+
+                    # 初始化模式下檢查是否已達到上限
+                    if initial_fetch and added >= max_items:
+                        print(f"已達到最大項目數 {max_items}，停止抓取")
+                        break
                 except Exception as e:
                     print(f"單則處理出錯: {e}")
 
+            print(f"{cat['name']} 抓取統計: 已存在={skipped_existing}, 非今日={skipped_old}, 新增={added}")
+
             if not new_items:
-                print(f"{cat['name']} 沒有新的條目，保持既有 RSS 不變。")
+                print(f"{cat['name']} 沒有今日新的條目，保持既有 RSS 不變。")
                 return
 
             # 合併既有與新項目，依 pubDate 排序，去重
@@ -351,26 +383,44 @@ def fetch_category_with_playwright(cat):
             browser.close()
 
 def write_index(output_dir='docs'):
-    files = []
-    for fname in sorted(os.listdir(output_dir)):
-        if fname.endswith('.xml'):
-            path = os.path.join(output_dir, fname)
+    # 根據 categories.json 生成 index，包含分類名稱和描述
+    feeds_info = []
+    for cat in CATEGORIES:
+        fname = cat['file']
+        path = os.path.join(output_dir, fname)
+        if os.path.exists(path):
             try:
                 with open(path, 'r', encoding='utf-8') as f:
                     content = f.read()
                 count = content.count('<item>')
                 mtime = datetime.datetime.fromtimestamp(os.path.getmtime(path), datetime.timezone.utc)
-                files.append({'name': fname, 'count': count, 'mtime': mtime})
+                feeds_info.append({
+                    'name': cat.get('name', fname),
+                    'file': fname,
+                    'url': cat.get('url', ''),
+                    'description': cat.get('description', ''),
+                    'count': count,
+                    'mtime': mtime
+                })
             except Exception as e:
                 print(f"讀取 {path} 時出錯: {e}")
+        else:
+            print(f"警告: {fname} 尚未產生")
 
     # 寫入 index.html
     index_path = os.path.join(output_dir, 'index.html')
     with open(index_path, 'w', encoding='utf-8') as fh:
-        fh.write("<!doctype html>\n<html lang=\"zh-TW\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\" />\n  <title>rsslinks</title>\n</head>\n<body>\n  <h1>rsslinks</h1>\n  <p>自動產生的 RSS 檔案</p>\n  <ul>\n")
-        for f in files:
-            fh.write(f"    <li><a href=\"./{f['name']}\">{f['name']}</a> - {f['count']} items - updated {f['mtime'].astimezone().strftime('%Y-%m-%d %H:%M:%S %Z')}</li>\n")
-        fh.write("  </ul>\n  <p>Updated: " + datetime.datetime.now().astimezone().strftime('%Y-%m-%d %H:%M:%S %Z') + "</p>\n</body>\n</html>")
+        fh.write("<!doctype html>\n<html lang=\"zh-TW\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\" />\n  <title>RSS Links - 自動產生的 RSS 訂閱源</title>\n  <style>\n    body { font-family: system-ui, -apple-system, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; line-height: 1.6; }\n    h1 { color: #333; }\n    .feed-item { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; }\n    .feed-item h3 { margin: 0 0 10px 0; }\n    .feed-item a { color: #0066cc; text-decoration: none; font-weight: 500; }\n    .feed-item a:hover { text-decoration: underline; }\n    .feed-meta { color: #666; font-size: 0.9em; margin-top: 5px; }\n    .source-url { color: #888; font-size: 0.85em; word-break: break-all; }\n    footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 0.9em; }\n  </style>\n</head>\n<body>\n  <h1>RSS Links</h1>\n  <p>自動產生的 RSS 訂閱源，每小時更新</p>\n")
+        for feed in feeds_info:
+            fh.write(f"  <div class=\"feed-item\">\n")
+            fh.write(f"    <h3><a href=\"./{feed['file']}\">{feed['name']}</a></h3>\n")
+            if feed['description']:
+                fh.write(f"    <p>{feed['description']}</p>\n")
+            fh.write(f"    <div class=\"feed-meta\">{feed['count']} 篇文章 • 更新於 {feed['mtime'].astimezone().strftime('%Y-%m-%d %H:%M:%S %Z')}</div>\n")
+            if feed['url']:
+                fh.write(f"    <div class=\"source-url\">來源: <a href=\"{feed['url']}\" target=\"_blank\">{feed['url']}</a></div>\n")
+            fh.write(f"  </div>\n")
+        fh.write("  <footer>\n    <p>最後生成時間: " + datetime.datetime.now().astimezone().strftime('%Y-%m-%d %H:%M:%S %Z') + "</p>\n  </footer>\n</body>\n</html>")
     print(f"已更新 index: {index_path}")
 
 
