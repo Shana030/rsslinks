@@ -214,7 +214,28 @@ def fetch_category_with_playwright(cat):
 
             html_content = page.content()
             soup = BeautifulSoup(html_content, 'html.parser')
-            anchors = soup.select('a[href*="/articles/view/"], a[href*="/article/"]')
+
+            # 支援多種文章URL格式
+            # 1. /articles/view/ (數位時代)
+            # 2. /article/ (一般部落格)
+            # 3. /blogs/category/article (Shopify部落格)
+            anchors = soup.select('a[href*="/articles/view/"], a[href*="/article/"], a[href*="/blogs/"]')
+
+            # 過濾 Shopify 部落格連結：只保留實際文章(包含兩層路徑)，排除分類頁
+            filtered_anchors = []
+            for a in anchors:
+                href = a.get('href', '')
+                # Shopify 文章格式: /blogs/分類/文章標題
+                if '/blogs/' in href:
+                    # 計算 blogs/ 之後的斜線數量
+                    after_blogs = href.split('/blogs/')[-1]
+                    slash_count = after_blogs.count('/')
+                    # 至少要有一個斜線(分類/文章)，排除只有分類的連結
+                    if slash_count >= 1:
+                        filtered_anchors.append(a)
+                else:
+                    filtered_anchors.append(a)
+            anchors = filtered_anchors
 
             # 載入既有 feed 項目（若有），以便只加入新的條目
             output_dir = os.environ.get('OUTPUT_DIR', 'docs')
