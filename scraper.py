@@ -103,8 +103,41 @@ from urllib.parse import urljoin
 
 def _parse_pubdate_from_soup(art_soup):
     # 嘗試從常見 meta 或 time 標籤解析發佈時間
-    # 優先順序: article:published_time / og:published_time / article:published / meta[name=date] / <time datetime>
+    # 優先順序: JSON-LD datePublished > article:published_time > og:published_time > <time datetime>
     from dateutil import parser as date_parser
+    import json
+    import re
+
+    # 優先解析 JSON-LD 結構化數據
+    json_ld_scripts = art_soup.find_all('script', type='application/ld+json')
+    for script in json_ld_scripts:
+        try:
+            # 清理可能的註解和特殊字符
+            content = script.string
+            if content:
+                # 移除可能的 HTML 註解
+                content = re.sub(r'<!--.*?-->', '', content, flags=re.DOTALL)
+                data = json.loads(content)
+                # 支持單個對象或數組
+                items = data if isinstance(data, list) else [data]
+                for item in items:
+                    if isinstance(item, dict):
+                        # 檢查 datePublished
+                        if 'datePublished' in item:
+                            try:
+                                return date_parser.parse(item['datePublished'])
+                            except Exception:
+                                pass
+                        # 檢查 publishedDate (有些網站用這個)
+                        if 'publishedDate' in item:
+                            try:
+                                return date_parser.parse(item['publishedDate'])
+                            except Exception:
+                                pass
+        except Exception:
+            pass
+
+    # 回退到 meta 標籤解析
     candidates = [
         ('meta', {'property': 'article:published_time'}),
         ('meta', {'property': 'og:published_time'}),
@@ -122,12 +155,12 @@ def _parse_pubdate_from_soup(art_soup):
                 return dt
             except Exception:
                 pass
+
     # time 標籤
     t = art_soup.find('time')
     if t:
         if t.get('datetime'):
             try:
-                from dateutil import parser as date_parser
                 return date_parser.parse(t.get('datetime'))
             except Exception:
                 pass
