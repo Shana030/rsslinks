@@ -57,8 +57,7 @@ jobs:
           echo "Committing generated XML files (if changed) to branch $BRANCH"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/*.xml || true
-          # do not overwrite index.html (we expect manual maintenance)
+          git add docs/*.xml docs/index.html || true
           if git diff --cached --quiet; then
             echo "No generated XML changes to commit"
           else
