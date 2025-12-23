@@ -101,6 +101,88 @@ CATEGORIES = load_categories()
 from urllib.parse import urljoin
 
 
+def _parse_pubdate_from_soup(art_soup):
+    # 嘗試從常見 meta 或 time 標籤解析發佈時間
+    # 優先順序: article:published_time / og:published_time / article:published / meta[name=date] / <time datetime>
+    from dateutil import parser as date_parser
+    candidates = [
+        ('meta', {'property': 'article:published_time'}),
+        ('meta', {'property': 'og:published_time'}),
+        ('meta', {'property': 'article:published'}),
+        ('meta', {'name': 'date'}),
+        ('meta', {'name': 'pubdate'}),
+        ('meta', {'itemprop': 'datePublished'}),
+        ('meta', {'property': 'article:published'}),
+    ]
+    for tag, attr in candidates:
+        el = art_soup.find(tag, attrs=attr)
+        if el and el.get('content'):
+            try:
+                dt = date_parser.parse(el.get('content'))
+                return dt
+            except Exception:
+                pass
+    # time 標籤
+    t = art_soup.find('time')
+    if t:
+        if t.get('datetime'):
+            try:
+                from dateutil import parser as date_parser
+                return date_parser.parse(t.get('datetime'))
+            except Exception:
+                pass
+        text = t.get_text(strip=True)
+        try:
+            return date_parser.parse(text)
+        except Exception:
+            pass
+    return None
+
+
+def _load_existing_feed_items(path):
+    import xml.etree.ElementTree as ET
+    items = []
+    if not os.path.exists(path):
+        return items
+    try:
+        tree = ET.parse(path)
+        root = tree.getroot()
+        # RSS 項目可能在 channel/item
+        for item in root.findall('.//item'):
+            link_el = item.find('link')
+            guid_el = item.find('guid')
+            title_el = item.find('title')
+            desc_el = item.find('description')
+            pub_el = item.find('pubDate')
+            enclosure_el = item.find('enclosure')
+            link = (link_el.text.strip() if link_el is not None and link_el.text else None)
+            guid = (guid_el.text.strip() if guid_el is not None and guid_el.text else None)
+            title = (title_el.text if title_el is not None and title_el.text else '')
+            desc = (desc_el.text if desc_el is not None and desc_el.text else '')
+            pub = None
+            if pub_el is not None and pub_el.text:
+                try:
+                    from dateutil import parser as date_parser
+                    pub = date_parser.parse(pub_el.text)
+                except Exception:
+                    pub = None
+            image = None
+            if enclosure_el is not None and enclosure_el.get('url'):
+                image = enclosure_el.get('url')
+            items.append({'id': guid or link, 'link': link, 'title': title, 'description': desc, 'pubDate': pub, 'image': image})
+    except Exception as e:
+        print(f"解析既有 RSS ( {path} ) 發生錯誤: {e}")
+    return items
+
+
+def _format_datetime_for_feed(dt):
+    if dt is None:
+        return datetime.datetime.now(datetime.timezone.utc)
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=datetime.timezone.utc)
+    return dt.astimezone(datetime.timezone.utc)
+
+
 def fetch_category_with_playwright(cat):
     print(f"正在使用 Playwright 抓取: {cat['name']}...")
 
@@ -109,50 +191,46 @@ def fetch_category_with_playwright(cat):
         page = browser.new_page()
 
         try:
-            # 如果目標 URL 在 60 秒內沒有回應，就跳過該 URL（等待下一次排程）
             timeout_ms = 60_000
             try:
                 page.goto(cat['url'], wait_until='networkidle', timeout=timeout_ms)
             except Exception as e:
                 print(f"導覽 {cat['url']} 失敗或超時 ({timeout_ms}ms)，已跳過此 category: {e}")
-                return  # 跳過本 category，繼續下一個
+                return
 
             html_content = page.content()
             soup = BeautifulSoup(html_content, 'html.parser')
-
-            # 找出文章連結（支援不同 bnext 網域：/articles/view/ 或 /article/），選用有標題文字的連結並去重
             anchors = soup.select('a[href*="/articles/view/"], a[href*="/article/"]')
 
-            fg = FeedGenerator()
-            fg.id(cat['url'])
-            fg.title(f"未來商務 - {cat['name']}")
-            fg.link(href=cat['url'], rel='alternate')
-            fg.description(f"自動抓取的未來商務 {cat['name']} 頻道 (Playwright)")
-            fg.language('zh-TW')
+            # 載入既有 feed 項目（若有），以便只加入新的條目
+            output_dir = os.environ.get('OUTPUT_DIR', 'docs')
+            os.makedirs(output_dir, exist_ok=True)
+            output_path = os.path.join(output_dir, cat['file'])
+            existing = _load_existing_feed_items(output_path)
+            existing_ids = set([e['id'] for e in existing if e.get('id')])
 
+            new_items = []
             seen = set()
             added = 0
 
-            # 遍歷 anchors，選用有標題文字的連結
             for a in anchors:
-                if added >= 15:
-                    break
                 try:
                     href = a.get('href')
                     title = a.get_text(strip=True)
                     if not href or not title:
                         continue
-
-                    # 將相對路徑轉成絕對路徑（以 category url 為 base）
                     href = urljoin(cat['url'], href)
-
                     if href in seen:
                         continue
                     seen.add(href)
+                    if href in existing_ids:
+                        # 已存在，不再加入
+                        continue
 
-                    # 抓取文章頁面的 meta description 與 image（若在 60s 內沒有回應則跳過該文章）
+                    # 抓取文章頁面
                     desc = ''
                     image = None
+                    pubdate = None
                     article_html = None
                     art_timeout_ms = 60_000
                     art_page = None
@@ -171,61 +249,101 @@ def fetch_category_with_playwright(cat):
 
                     if article_html:
                         art_soup = BeautifulSoup(article_html, 'html.parser')
-                        # meta description
+                        # description
                         meta = art_soup.find('meta', attrs={'name': 'description'})
                         if not meta:
                             meta = art_soup.find('meta', attrs={'property': 'og:description'})
                         if meta and meta.get('content'):
                             meta_desc = meta.get('content').strip()
-                            # 若 meta 描述與標題不同，才放入 description
                             if meta_desc and meta_desc != title:
                                 desc = meta_desc
 
-                        # meta image
+                        # image
                         meta_img = art_soup.find('meta', attrs={'property': 'og:image'})
                         if not meta_img:
                             meta_img = art_soup.find('meta', attrs={'name': 'twitter:image'})
                         if meta_img and meta_img.get('content'):
                             image = urljoin(href, meta_img.get('content').strip())
                         else:
-                            # fallback: 文章內第一張 img
                             img_tag = art_soup.select_one('article img, .article img, .post img, img')
                             if img_tag and img_tag.get('src'):
                                 image = urljoin(href, img_tag.get('src').strip())
 
-                    # 建立 feed entry
-                    fe = fg.add_entry()
-                    fe.id(href)
-                    fe.title(title)
-                    fe.link(href=href)
-                    if desc:
-                        fe.description(desc)
-                    else:
-                        fe.description('')
-                    # 加上圖片為 enclosure（若有）
-                    if image:
-                        try:
-                            fe.enclosure(image, 0, 'image/*')
-                        except Exception:
-                            # 若 enclosure 失敗，將圖片放入 description（簡單 fallback）
-                            if desc:
-                                fe.description(f"<img src=\"{image}\" />\n" + desc)
-                            else:
-                                fe.description(f"<img src=\"{image}\" />")
+                        # pubdate
+                        pubdate = _parse_pubdate_from_soup(art_soup)
 
-                    fe.pubDate(datetime.datetime.now(datetime.timezone.utc))
+                    if not pubdate:
+                        pubdate = datetime.datetime.now(datetime.timezone.utc)
+
+                    new_items.append({'id': href, 'link': href, 'title': title, 'description': desc, 'pubDate': pubdate, 'image': image})
                     added += 1
-                    print(f"加入條目: title='{title[:40]}', href={href}, desc={'有' if desc else '無'}, image={'有' if image else '無'})")
+                    print(f"新增條目: title='{title[:40]}', href={href}, desc={'有' if desc else '無'}, image={'有' if image else '無'}, pub={pubdate})")
                 except Exception as e:
                     print(f"單則處理出錯: {e}")
-            print(f"Found {len(anchors)} article anchors, added {added} entries.")
 
-            # 確保輸出到 docs/ 以便 GitHub Pages 發佈（或改成別的資料夾視 Pages 設定）
-            output_dir = os.environ.get('OUTPUT_DIR', 'docs')
-            os.makedirs(output_dir, exist_ok=True)
-            output_path = os.path.join(output_dir, cat['file'])
-            fg.rss_file(output_path)
-            print(f"已生成: {output_path}")
+            if not new_items:
+                print(f"{cat['name']} 沒有新的條目，保持既有 RSS 不變。")
+                return
+
+            # 合併既有與新項目，依 pubDate 排序，去重
+            combined = existing + new_items
+            # 用 link 作為唯一鍵
+            uniq = {}
+            for it in combined:
+                key = it.get('link') or it.get('id')
+                if not key:
+                    continue
+                # 優先保留較新的 pubDate
+                if key in uniq:
+                    if it.get('pubDate') and (not uniq[key].get('pubDate') or it['pubDate'] > uniq[key]['pubDate']):
+                        uniq[key] = it
+                else:
+                    uniq[key] = it
+            items_sorted = sorted(uniq.values(), key=lambda x: x.get('pubDate') or datetime.datetime.now(datetime.timezone.utc), reverse=True)
+
+            fg = FeedGenerator()
+            fg.id(cat['url'])
+            fg.title(cat.get('name') or 'RSS')
+            fg.link(href=cat['url'], rel='alternate')
+            fg.description(cat.get('description') or f"自動抓取的 {cat.get('name')} 頻道")
+            fg.language('zh-TW')
+
+            for it in items_sorted:
+                fe = fg.add_entry()
+                fe.id(it.get('id') or it.get('link'))
+                fe.title(it.get('title') or '')
+                if it.get('link'):
+                    fe.link(href=it.get('link'))
+                if it.get('description'):
+                    fe.description(it.get('description'))
+                if it.get('image'):
+                    try:
+                        fe.enclosure(it.get('image'), 0, 'image/*')
+                    except Exception:
+                        if it.get('description'):
+                            fe.description(f"<img src=\"{it.get('image')}\"/>\n" + it.get('description'))
+                        else:
+                            fe.description(f"<img src=\"{it.get('image')}\"/>")
+                fe.pubDate(_format_datetime_for_feed(it.get('pubDate')))
+
+            # 寫檔前比較內容是否有變動，避免無意義 commit
+            import io
+            tmp = io.BytesIO()
+            fg.rss_file(tmp)
+            new_content = tmp.getvalue()
+
+            prev_content = None
+            if os.path.exists(output_path):
+                with open(output_path, 'rb') as fh:
+                    prev_content = fh.read()
+
+            if prev_content == new_content:
+                print(f"{cat['name']} RSS 內容無變動，不寫檔。")
+                return
+
+            with open(output_path, 'wb') as fh:
+                fh.write(new_content)
+            print(f"已生成並更新: {output_path} (新增 {len(new_items)} 條)" )
 
         except Exception as e:
             print(f"抓取 {cat['url']} 失敗: {e}")

@@ -34,20 +34,24 @@
 ```json
 {"name": "精選內容", "url": "https://fc.bnext.com.tw/category/picks", "xml": "picks.xml"}
 ```
-- 如果未指定，程式會嘗試：1) 從 URL 推導適合的檔名前綴（如 URL 的最後一個路徑段），2) 否則會以 `category_N.xml` 為預設。
+- 若某個來源有抓取問題，請回報以修正程式或擷取邏輯（目前不支援手動設定 CSS selector，亦無手動限制每次新增數量的欄位）。
+
+增量更新與欄位行為（重要）
+
+- 腳本會讀取既有 `docs/<xml>`，只**加入尚未出現的條目**（以 `link` 或 `guid` 辨識），不會每次覆寫或刪除舊條目。
+- 每則新文章會嘗試擷取：標題、描述（優先使用 meta description；若與標題相同則當作無描述）、預設圖片（og:image 或首張 img）以及發佈時間（嘗試解析常見 meta 與 time 標籤）。若無發佈時間則以執行時間代替。
+- 若該來源沒有新文章，腳本會跳過寫檔，避免無意義的 commit。
+
 
 發生問題時的簡單手動流程
 
 - 若自動化卡住或沒抓到條目：
   1. 在本地執行 `python scraper.py`，檢查 `docs/*.xml` 是否有條目。
-  2. 若需要修 selector 或手動建立 `docs/index.html`，可直接修改並推一個分支，再建立 PR 手動合併。
+  2. 若需要修擷取規則或手動建立 `docs/index.html`，可直接修改並推一個分支，再建立 PR 手動合併。
 
 - 連線超時行為：
   - 若 category 頁面或文章頁在 **60 秒** 內沒有回應，腳本會**跳過該 URL 並繼續下一個**；這樣可以確保整個 run 不會被單一慢速源阻塞，並在下一次排程再重試。
 
-關於 `link_selector`
-
-- 若某個來源無法自動抓到正確連結，可在 `categories.json` 的該項目加 `link_selector`（CSS selector），以提高抓取精準度。
 
 簡潔結語
 
