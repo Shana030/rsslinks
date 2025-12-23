@@ -193,10 +193,10 @@ def fetch_category_with_playwright(cat):
 
     # 檢查是否為初始化模式（抓取前N篇）
     initial_fetch = os.environ.get('INITIAL_FETCH', 'false').lower() in ('1', 'true', 'yes')
-    max_items = int(os.environ.get('MAX_ITEMS', '100')) if initial_fetch else None
+    max_items = int(os.environ.get('MAX_ITEMS', '20')) if initial_fetch else None
 
     if initial_fetch:
-        print(f"初始化模式: 抓取前 {max_items} 篇文章")
+        print(f"初始化模式: 抓取列表頁前 {max_items} 篇文章")
     else:
         print(f"只抓取今日發佈的文章: {today_tw}")
 
@@ -229,7 +229,12 @@ def fetch_category_with_playwright(cat):
             skipped_old = 0
             skipped_existing = 0
 
-            for a in anchors:
+            # 在初始化模式下，限制處理的連結數量以避免過長執行時間
+            # 每個來源最多抓取前 20 篇文章（列表頁顯示的數量）
+            max_links_to_process = 20 if initial_fetch else len(anchors)
+            anchors_to_process = anchors[:max_links_to_process] if initial_fetch else anchors
+
+            for a in anchors_to_process:
                 try:
                     href = a.get('href')
                     title = a.get_text(strip=True)
