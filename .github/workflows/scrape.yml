@@ -19,12 +19,21 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      - name: Install dependencies & diagnostics
         run: |
+          echo "*** Runner info ***"
+          uname -a
+          python --version
+          which python || true
+          echo "*** pip freeze before install ***"
+          pip freeze | sed -n '1,200p' || true
+
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          # 安裝 Playwright 瀏覽器
-          npx playwright install --with-deps
+
+          echo "*** Playwright install via Python (no npx needed) ***"
+          # 使用 python 的 playwright CLI，避免缺少 npx/node 的情況
+          python -m playwright install --with-deps || (echo "playwright install failed" && exit 1)
 
       - name: Run scraper
         env:
