@@ -63,5 +63,6 @@ jobs:
             echo "No generated XML changes to commit"
           else
             git commit -m "Auto: regenerate feeds after categories/index update [skip ci]" || true
+            git pull --rebase origin "${BRANCH}"
             git push origin "HEAD:${BRANCH}"
           fi
