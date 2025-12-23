@@ -57,11 +57,20 @@ jobs:
           echo "Committing generated XML files (if changed) to branch $BRANCH"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 先拉取最新變更
+          git fetch origin "${BRANCH}"
+
           git add docs/*.xml docs/index.html || true
           if git diff --cached --quiet; then
             echo "No generated XML changes to commit"
           else
             git commit -m "Auto: regenerate feeds after categories/index update [skip ci]" || true
-            git pull --rebase origin "${BRANCH}"
-            git push origin "HEAD:${BRANCH}"
+
+            # 嘗試推送，如果失敗則 pull 後重試
+            if ! git push origin "HEAD:${BRANCH}"; then
+              echo "Push failed, pulling and retrying..."
+              git pull origin "${BRANCH}" --rebase --strategy-option=ours || git pull origin "${BRANCH}" --no-rebase
+              git push origin "HEAD:${BRANCH}"
+            fi
           fi
