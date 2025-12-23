@@ -5,5 +5,7 @@
   {"name": "深度故事", "url": "https://fc.bnext.com.tw/category/stories", "xml": "stories.xml"},
   {"name": "BNET Articles", "url": "https://www.bnext.com.tw/articles", "xml": "bnext_articles.xml"},
   {"name": "BNET AI", "url": "https://www.bnext.com.tw/categories/ai", "xml": "bnext_ai.xml"},
-  {"name": "林位青｜AI / UX｜方格子 vocus", "url": "https://vocus.cc/salon/alan623/room/aiux", "xml": "vocus_aiux.xml"}
+  {"name": "林位青｜AI / UX｜方格子 vocus", "url": "https://vocus.cc/salon/alan623/room/aiux", "xml": "vocus_aiux.xml"},
+  {"name": "數位時代｜最新新聞", "url": "https://www.bnext.com.tw/articles", "xml": "bnext_articles.xml"},
+  {"name": "數位時代｜AI與大數據", "url": "https://www.bnext.com.tw/categories/ai", "xml": "bnext_ai.xml"}
 ]
