@@ -528,37 +528,25 @@ def fetch_category_with_playwright(cat):
 
 def write_index(output_dir='docs'):
     # 根據 categories.json 生成 index，包含分類名稱和描述
+    # 不包含任何動態資訊（如文章數量、時間），以避免不必要的 commit
     feeds_info = []
     for cat in CATEGORIES:
-        fname = cat['file']
-        path = os.path.join(output_dir, fname)
-        if os.path.exists(path):
-            try:
-                with open(path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                count = content.count('<item>')
-                feeds_info.append({
-                    'name': cat.get('name', fname),
-                    'file': fname,
-                    'url': cat.get('url', ''),
-                    'description': cat.get('description', ''),
-                    'count': count
-                })
-            except Exception as e:
-                print(f"讀取 {path} 時出錯: {e}")
-        else:
-            print(f"警告: {fname} 尚未產生")
+        feeds_info.append({
+            'name': cat.get('name', cat['file']),
+            'file': cat['file'],
+            'url': cat.get('url', ''),
+            'description': cat.get('description', '')
+        })
 
-    # 寫入 index.html（不含時間戳記，減少無意義的 commit）
+    # 寫入 index.html（完全靜態，除非 categories.json 變更否則不會改變）
     index_path = os.path.join(output_dir, 'index.html')
     with open(index_path, 'w', encoding='utf-8') as fh:
-        fh.write("<!doctype html>\n<html lang=\"zh-TW\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\" />\n  <title>RSS Links - 自動產生的 RSS 訂閱源</title>\n  <style>\n    body { font-family: system-ui, -apple-system, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; line-height: 1.6; }\n    h1 { color: #333; }\n    .feed-item { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; }\n    .feed-item h3 { margin: 0 0 10px 0; }\n    .feed-item a { color: #0066cc; text-decoration: none; font-weight: 500; }\n    .feed-item a:hover { text-decoration: underline; }\n    .feed-meta { color: #666; font-size: 0.9em; margin-top: 5px; }\n    .source-url { color: #888; font-size: 0.85em; word-break: break-all; }\n    footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 0.9em; }\n  </style>\n</head>\n<body>\n  <h1>RSS Links</h1>\n  <p>自動產生的 RSS 訂閱源</p>\n")
+        fh.write("<!doctype html>\n<html lang=\"zh-TW\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\" />\n  <title>RSS Links - 自動產生的 RSS 訂閱源</title>\n  <style>\n    body { font-family: system-ui, -apple-system, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; line-height: 1.6; }\n    h1 { color: #333; }\n    .feed-item { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; }\n    .feed-item h3 { margin: 0 0 10px 0; }\n    .feed-item a { color: #0066cc; text-decoration: none; font-weight: 500; }\n    .feed-item a:hover { text-decoration: underline; }\n    .source-url { color: #888; font-size: 0.85em; word-break: break-all; }\n    footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 0.9em; }\n  </style>\n</head>\n<body>\n  <h1>RSS Links</h1>\n  <p>自動產生的 RSS 訂閱源</p>\n")
         for feed in feeds_info:
             fh.write(f"  <div class=\"feed-item\">\n")
             fh.write(f"    <h3><a href=\"./{feed['file']}\">{feed['name']}</a></h3>\n")
             if feed['description']:
                 fh.write(f"    <p>{feed['description']}</p>\n")
-            fh.write(f"    <div class=\"feed-meta\">{feed['count']} 篇文章</div>\n")
             if feed['url']:
                 fh.write(f"    <div class=\"source-url\">來源: <a href=\"{feed['url']}\" target=\"_blank\">{feed['url']}</a></div>\n")
             fh.write(f"  </div>\n")
