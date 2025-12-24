@@ -361,8 +361,9 @@ def fetch_category_with_playwright(cat):
                 try:
                     href = a.get('href')
                     title = a.get_text(strip=True)
-                    if not href or not title:
+                    if not href:
                         continue
+
                     href = urljoin(cat['url'], href)
                     if href in seen:
                         continue
@@ -372,7 +373,8 @@ def fetch_category_with_playwright(cat):
                         skipped_existing += 1
                         continue
 
-                    # 抓取文章頁面以取得發佈日期
+                    # 抓取文章頁面以取得標題、描述和發佈日期
+                    # 對於 /article/ 等明確的文章 URL，即使列表頁沒有標題也要進入文章頁抓取
                     desc = ''
                     image = None
                     pubdate = None
@@ -394,6 +396,20 @@ def fetch_category_with_playwright(cat):
 
                     if article_html:
                         art_soup = BeautifulSoup(article_html, 'html.parser')
+
+                        # 從文章頁獲取標題（如果列表頁沒有標題）
+                        if not title:
+                            # 嘗試從 og:title 或 title 標籤獲取
+                            meta_title = art_soup.find('meta', attrs={'property': 'og:title'})
+                            if meta_title and meta_title.get('content'):
+                                title = meta_title.get('content').strip()
+                            elif art_soup.title and art_soup.title.string:
+                                title = art_soup.title.string.strip()
+
+                            # 如果還是沒有標題，跳過這篇文章
+                            if not title:
+                                print(f"跳過無標題文章: {href}")
+                                continue
                         # description
                         meta = art_soup.find('meta', attrs={'name': 'description'})
                         if not meta:
@@ -521,34 +537,32 @@ def write_index(output_dir='docs'):
                 with open(path, 'r', encoding='utf-8') as f:
                     content = f.read()
                 count = content.count('<item>')
-                mtime = datetime.datetime.fromtimestamp(os.path.getmtime(path), datetime.timezone.utc)
                 feeds_info.append({
                     'name': cat.get('name', fname),
                     'file': fname,
                     'url': cat.get('url', ''),
                     'description': cat.get('description', ''),
-                    'count': count,
-                    'mtime': mtime
+                    'count': count
                 })
             except Exception as e:
                 print(f"讀取 {path} 時出錯: {e}")
         else:
             print(f"警告: {fname} 尚未產生")
 
-    # 寫入 index.html
+    # 寫入 index.html（不含時間戳記，減少無意義的 commit）
     index_path = os.path.join(output_dir, 'index.html')
     with open(index_path, 'w', encoding='utf-8') as fh:
-        fh.write("<!doctype html>\n<html lang=\"zh-TW\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\" />\n  <title>RSS Links - 自動產生的 RSS 訂閱源</title>\n  <style>\n    body { font-family: system-ui, -apple-system, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; line-height: 1.6; }\n    h1 { color: #333; }\n    .feed-item { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; }\n    .feed-item h3 { margin: 0 0 10px 0; }\n    .feed-item a { color: #0066cc; text-decoration: none; font-weight: 500; }\n    .feed-item a:hover { text-decoration: underline; }\n    .feed-meta { color: #666; font-size: 0.9em; margin-top: 5px; }\n    .source-url { color: #888; font-size: 0.85em; word-break: break-all; }\n    footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 0.9em; }\n  </style>\n</head>\n<body>\n  <h1>RSS Links</h1>\n  <p>自動產生的 RSS 訂閱源，每小時更新</p>\n")
+        fh.write("<!doctype html>\n<html lang=\"zh-TW\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\" />\n  <title>RSS Links - 自動產生的 RSS 訂閱源</title>\n  <style>\n    body { font-family: system-ui, -apple-system, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; line-height: 1.6; }\n    h1 { color: #333; }\n    .feed-item { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; }\n    .feed-item h3 { margin: 0 0 10px 0; }\n    .feed-item a { color: #0066cc; text-decoration: none; font-weight: 500; }\n    .feed-item a:hover { text-decoration: underline; }\n    .feed-meta { color: #666; font-size: 0.9em; margin-top: 5px; }\n    .source-url { color: #888; font-size: 0.85em; word-break: break-all; }\n    footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 0.9em; }\n  </style>\n</head>\n<body>\n  <h1>RSS Links</h1>\n  <p>自動產生的 RSS 訂閱源</p>\n")
         for feed in feeds_info:
             fh.write(f"  <div class=\"feed-item\">\n")
             fh.write(f"    <h3><a href=\"./{feed['file']}\">{feed['name']}</a></h3>\n")
             if feed['description']:
                 fh.write(f"    <p>{feed['description']}</p>\n")
-            fh.write(f"    <div class=\"feed-meta\">{feed['count']} 篇文章 • 更新於 {feed['mtime'].astimezone().strftime('%Y-%m-%d %H:%M:%S %Z')}</div>\n")
+            fh.write(f"    <div class=\"feed-meta\">{feed['count']} 篇文章</div>\n")
             if feed['url']:
                 fh.write(f"    <div class=\"source-url\">來源: <a href=\"{feed['url']}\" target=\"_blank\">{feed['url']}</a></div>\n")
             fh.write(f"  </div>\n")
-        fh.write("  <footer>\n    <p>最後生成時間: " + datetime.datetime.now().astimezone().strftime('%Y-%m-%d %H:%M:%S %Z') + "</p>\n  </footer>\n</body>\n</html>")
+        fh.write("  <footer>\n    <p>自動更新，每6小時執行一次</p>\n  </footer>\n</body>\n</html>")
     print(f"已更新 index: {index_path}")
 
 

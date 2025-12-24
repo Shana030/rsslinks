@@ -1,8 +1,8 @@
-name: Hourly RSS scrape
+name: RSS scrape every 6 hours
 
 on:
   schedule:
-    - cron: '0 * * * *'  # 每小時整點
+    - cron: '0 */6 * * *'  # 每6小時執行一次
   workflow_dispatch: {}
 
 permissions:
