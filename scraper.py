@@ -272,10 +272,28 @@ def fetch_category_with_playwright(cat):
 
                 # 2. 排除常見的非文章連結
                 path_lower = parsed.path.lower()
+                path_stripped = parsed.path.rstrip('/')
+
+                # 檢查是否為文章 URL 的明顯特徵
+                has_article_keyword = any(kw in path_lower for kw in ['/article/', '/post/', '/p/', '/news/', '/story/'])
+
+                # 如果不包含文章關鍵字，進行嚴格過濾
+                if not has_article_keyword:
+                    # 排除分類/標籤頁（包含但路徑段數少於3的）
+                    if any(kw in path_lower for kw in ['/categories/', '/category/', '/tag/', '/tags/']):
+                        path_segments = [p for p in parsed.path.split('/') if p]
+                        # /categories/ai 只有2段 -> 排除
+                        # /categories/ai/article/123 有4段 -> 保留（但這種情況少見）
+                        if len(path_segments) <= 2:
+                            continue
+
+                    # 排除作者頁
+                    if any(kw in path_lower for kw in ['/author/', '/authors/']):
+                        continue
+
+                # 排除其他系統頁面
                 excluded_patterns = [
-                    '/category/', '/categories/', '/tag/', '/tags/',
-                    '/author/', '/authors/', '/page/',
-                    '/search', '/login', '/register', '/account',
+                    '/page/', '/search', '/login', '/register', '/account',
                     '/cart', '/checkout', '/product',
                     '/privacy', '/terms', '/about', '/contact',
                     '/rss', '/feed', '.xml', '.json',
@@ -291,15 +309,22 @@ def fetch_category_with_playwright(cat):
                 if len(path_parts) < 1:
                     continue
 
-                # 4. 排除沒有標題文字的連結（圖片連結、按鈕等）
+                # 4. 檢查標題文字
                 title = a.get_text(strip=True)
-                if not title or len(title) < 5:
-                    continue
 
-                # 5. 排除導航類文字
-                nav_keywords = ['上一頁', '下一頁', 'next', 'previous', 'prev', '更多', 'more', '首頁', 'home']
-                if title.lower() in nav_keywords or any(kw in title.lower() for kw in nav_keywords if len(kw) > 3):
-                    continue
+                # 特殊處理：如果 URL 包含明顯的文章模式（/article/, /\d{4}/\d{2}/），允許沒有標題
+                has_article_pattern = any(pattern in path_lower for pattern in ['/article/', '/post/', '/p/'])
+                has_date_pattern = any(c.isdigit() for c in path_parts[:2]) if len(path_parts) >= 2 else False
+
+                if not has_article_pattern and not has_date_pattern:
+                    # 非文章 URL，必須有標題文字
+                    if not title or len(title) < 5:
+                        continue
+
+                    # 排除導航類文字
+                    nav_keywords = ['上一頁', '下一頁', 'next', 'previous', 'prev', '更多', 'more', '首頁', 'home']
+                    if title.lower() in nav_keywords or any(kw in title.lower() for kw in nav_keywords if len(kw) > 3):
+                        continue
 
                 filtered_anchors.append(a)
 
