@@ -7,5 +7,6 @@
   {"name": "數位時代｜AI與大數據", "url": "https://www.bnext.com.tw/categories/ai", "xml": "bnext_ai.xml"},
   {"name": "TechNews 科技新報｜尖端科技", "url": "https://technews.tw/category/cutting-edge/", "xml": "technews_cutting-edge.xml"},
   {"name": "林位青｜AI / UX｜方格子 vocus", "url": "https://vocus.cc/salon/alan623/room/aiux", "xml": "vocus_aiux.xml"},
-  {"name": "通勤精釀電子報｜通勤十分鐘", "url": "https://othewaytowork.com/blogs/%E9%80%9A%E5%8B%A4%E7%B2%BE%E9%87%80%E9%9B%BB%E5%AD%90%E5%A0%B1", "xml": "othewaytowork.xml"}
+  {"name": "通勤精釀電子報｜通勤十分鐘", "url": "https://othewaytowork.com/blogs/%E9%80%9A%E5%8B%A4%E7%B2%BE%E9%87%80%E9%9B%BB%E5%AD%90%E5%A0%B1", "xml": "othewaytowork.xml"},
+  {"name": "AI郵報｜每週大事電子報", "url": "https://www.aiposthub.com/tag/mei-zhou-da-shi-dian-zi-bao/", "xml": "aiposthub.xml"}
 ]
