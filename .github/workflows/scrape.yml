@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   scrape:
@@ -51,6 +52,7 @@ jobs:
           tag_name: latest-feeds
           files: docs/*.xml
           prerelease: true
+          token: ${{ secrets.GITHUB_TOKEN }}
           body: |
             Latest RSS feeds generated at ${{ github.event.repository.updated_at }}
 
