@@ -1,79 +1,116 @@
-# rsslinks — 簡潔說明
+# rsslinks — RSS 訂閱源生成器
 
-這個專案會定期抓取 `categories.json` 裡列的來源，產生 RSS XML 檔放在 `docs/`（供 GitHub Pages 發佈）。
+這個專案會定期抓取 `categories.json` 中列出的來源，產生 RSS XML 檔案並上傳到 GitHub Release，保持 repo 乾淨無 commit noise。
 
-核心指引（簡化版）
+## 快速開始
 
-- 本地測試：
-  ```bash
-  python -m venv .venv
-  source .venv/bin/activate
-  pip install -r requirements.txt
-  python -m playwright install chromium  # 第一次或需要時
-  python scraper.py                      # 生成 docs/*.xml 與 docs/index.html
-  ```
-- 若結果正確，手動提交並推上遠端：
-  ```bash
-  git add docs/*.xml docs/index.html
-  git commit -m "Update generated RSS feeds"
-  git push origin main
-  ```
-
-自動化行為（簡述）
-
-- **每小時自動抓取**（GitHub Actions 排程 `0 * * * *`）：
-  - 自動執行 `python scraper.py`，抓取**今日發佈**的新文章。
-  - 只加入尚未存在的條目，已存在的文章會自動跳過。
-  - 自動更新 `docs/*.xml` 和 `docs/index.html`。
-  - 若有變更，自動 commit 並 push 回 main 分支。
-
-- 當你 **推送修改到 `categories.json`** 時，會觸發自動重新生成：
-  - 在 runner 上執行 `python scraper.py` 並 **自動產生 / 更新 `docs/*.xml`**（抓取對應來源）。
-  - 自動更新 `docs/index.html`（根據 categories.json 的內容生成）。
-  - 若有 `docs/*.xml` 的變更，工作流程會自動 **commit 並 push 回原分支**。
-
-- 若你想手動觸發一次（例如在 GitHub UI），也可以使用工作流程的 **Run workflow**（workflow_dispatch）。
-
-- **index.html 自動維護**：
-  - `docs/index.html` 現在會根據 `categories.json` **自動生成**，包含每個 feed 的名稱、描述、文章數量和來源連結。
-  - 你只需要維護 `categories.json` 一個檔案即可。
-
-關於 `xml` 欄位（新）
-
-- 建議在 `categories.json` 的每個項目加入 `xml` 欄位，明確指定輸出的 RSS 檔名（使用 ASCII，避免中文檔名）：
-```json
-{"name": "精選內容", "url": "https://fc.bnext.com.tw/category/picks", "xml": "picks.xml"}
+### 本地測試
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python -m playwright install chromium  # 第一次或需要時
+python scraper.py                      # 生成 docs/*.xml
 ```
-- 若某個來源有抓取問題，請回報以修正程式或擷取邏輯（目前不支援手動設定 CSS selector，亦無手動限制每次新增數量的欄位）。
 
-增量更新與欄位行為（重要）
+### RSS 訂閱連結格式
+所有 RSS feed 都透過 GitHub Release 提供，訂閱連結格式：
+```
+https://github.com/Shana030/rsslinks/releases/download/latest-feeds/[檔案名稱].xml
+```
 
-- **每日更新模式**（預設）：
-  - 腳本會讀取既有 `docs/<xml>`，只**加入今日發佈且尚未出現的條目**（以 `link` 或 `guid` 辨識）。
-  - 已存在的文章會自動跳過，非今日發佈的文章也會跳過。
-  - 這樣可以確保每小時的自動抓取只會新增今日的新文章，不會重複抓取舊文章。
+例如：
+- 未來商務｜精選內容：`https://github.com/Shana030/rsslinks/releases/download/latest-feeds/picks.xml`
+- 數位時代｜AI與大數據：`https://github.com/Shana030/rsslinks/releases/download/latest-feeds/bnext_ai.xml`
 
-- **初始化模式**（手動執行）：
-  - 如果需要一次性抓取前 N 篇文章（例如初始化），可以設定環境變數：
-    ```bash
-    INITIAL_FETCH=true MAX_ITEMS=100 python scraper.py
-    ```
-  - 此模式會抓取所有文章（不限今日），直到達到 MAX_ITEMS 數量或列表頁沒有更多文章。
+完整訂閱連結列表請參考：https://shana030.github.io/rsslinks/
 
-- 每則新文章會嘗試擷取：標題、描述（優先使用 meta description；若與標題相同則當作無描述）、預設圖片（og:image 或首張 img）以及發佈時間（嘗試解析常見 meta 與 time 標籤）。若無發佈時間則以執行時間代替。
-- 若該來源沒有新文章，腳本會跳過寫檔，避免無意義的 commit。
+## 自動化行為
+
+### 每 6 小時自動抓取
+- GitHub Actions 排程：`0 */6 * * *`（每 6 小時執行一次）
+- 自動執行 `python scraper.py`，抓取**今日發佈**的新文章
+- 只加入尚未存在的條目，已存在的文章會自動跳過
+- 生成的 XML 檔案**自動上傳到 GitHub Release**（tag: `latest-feeds`）
+- **不會 commit XML 到 repo**，保持 git 歷史乾淨
+- 只有當 `categories.json` 變更時才會 commit `index.html`
+
+### 手動觸發
+在 GitHub Actions 頁面使用 **Run workflow** 手動執行
+
+### index.html 自動維護
+- `docs/index.html` 根據 `categories.json` 自動生成
+- 包含每個 feed 的名稱、來源連結和 Release 訂閱連結
+- 完全靜態，只在 `categories.json` 變更時才更新
+
+## categories.json 格式
+
+每個項目需要包含 `xml` 欄位（使用 ASCII 檔名，避免中文）：
+```json
+{
+  "name": "未來商務｜精選內容",
+  "url": "https://fc.bnext.com.tw/category/picks",
+  "xml": "picks.xml"
+}
+```
+
+## 更新模式
+
+### 每日更新模式（預設）
+- 腳本讀取既有的 XML 檔案（從 Release 下載或本地），只加入**今日發佈且尚未出現**的條目
+- 以 `link` 或 `guid` 辨識重複文章
+- 非今日發佈的文章會自動跳過
+- 沒有新文章時跳過該來源，不產生空的更新
+
+### 初始化模式（手動執行）
+一次性抓取前 N 篇文章（不限今日）：
+```bash
+INITIAL_FETCH=true MAX_ITEMS=20 python scraper.py
+```
+
+## 文章資訊擷取
+
+每篇文章會嘗試擷取：
+- **標題**：優先使用 og:title，回退到 `<title>` 標籤
+- **描述**：優先使用 meta description（若與標題相同則視為無描述）
+- **圖片**：優先使用 og:image，回退到文章首張圖片
+- **發佈時間**：解析 JSON-LD、meta 標籤或 `<time>` 標籤，無法解析則使用當前時間
 
 
-發生問題時的簡單手動流程
+## 故障排除
 
-- 若自動化卡住或沒抓到條目：
-  1. 在本地執行 `python scraper.py`，檢查 `docs/*.xml` 是否有條目。
-  2. 若需要修擷取規則或手動建立 `docs/index.html`，可直接修改並推一個分支，再建立 PR 手動合併。
+### 自動化問題
+若 GitHub Actions 執行失敗或沒抓到文章：
+1. 檢查 Actions 日誌確認錯誤訊息
+2. 本地執行 `python scraper.py` 測試
+3. 手動觸發 workflow 重試
 
-- 連線超時行為：
-  - 若 category 頁面或文章頁在 **60 秒** 內沒有回應，腳本會**跳過該 URL 並繼續下一個**；這樣可以確保整個 run 不會被單一慢速源阻塞，並在下一次排程再重試。
+### 連線超時
+- 若頁面在 **60 秒**內沒有回應，腳本會跳過該 URL 並繼續下一個
+- 確保整個執行不會被單一慢速源阻塞
+- 下次排程會自動重試
 
+### 檢查 RSS 訂閱連結
+確認 Release 中的 XML 檔案：
+1. 前往 https://github.com/Shana030/rsslinks/releases/tag/latest-feeds
+2. 檢查是否有所有的 XML 檔案
+3. 若缺少檔案，手動觸發 workflow
 
-簡潔結語
+## 架構說明
 
-- 我已把 workflow 設計成「自動檢測 & 建 PR，若沒變更就跳過」，以便你仍保有人工審核的控制權；若你要我把這份 README 再精簡或加入其它指令（例如快速建立 index.html 的 script），告訴我我就改。
+### 為什麼使用 GitHub Release？
+- ✅ **乾淨的 repo**：XML 不再產生 commit，git 歷史乾淨
+- ✅ **零成本**：完全使用 GitHub 原生功能，無需外部服務
+- ✅ **穩定的 URL**：`latest-feeds` tag 確保訂閱連結永久有效
+- ✅ **自動更新**：每次 workflow 執行會覆蓋 Release 中的檔案
+
+### 檔案結構
+```
+.
+├── categories.json          # RSS 來源設定（唯一需要手動維護的檔案）
+├── scraper.py              # 主要爬蟲程式
+├── docs/
+│   └── index.html          # GitHub Pages 首頁（自動生成）
+└── .github/workflows/
+    └── scrape.yml          # 每 6 小時執行的自動化工作流程
+```
