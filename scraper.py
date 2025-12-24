@@ -248,27 +248,63 @@ def fetch_category_with_playwright(cat):
             html_content = page.content()
             soup = BeautifulSoup(html_content, 'html.parser')
 
-            # 支援多種文章URL格式
-            # 1. /articles/view/ (數位時代)
-            # 2. /article/ (一般部落格)
-            # 3. /blogs/category/article (Shopify部落格)
-            anchors = soup.select('a[href*="/articles/view/"], a[href*="/article/"], a[href*="/blogs/"]')
+            # 通用文章連結偵測：不依賴特定 URL 格式
+            # 策略：選取所有連結，用啟發式規則過濾
+            from urllib.parse import urlparse
 
-            # 過濾 Shopify 部落格連結：只保留實際文章(包含兩層路徑)，排除分類頁
+            base_domain = urlparse(cat['url']).netloc
+            all_anchors = soup.find_all('a', href=True)
+
             filtered_anchors = []
-            for a in anchors:
-                href = a.get('href', '')
-                # Shopify 文章格式: /blogs/分類/文章標題
-                if '/blogs/' in href:
-                    # 計算 blogs/ 之後的斜線數量
-                    after_blogs = href.split('/blogs/')[-1]
-                    slash_count = after_blogs.count('/')
-                    # 至少要有一個斜線(分類/文章)，排除只有分類的連結
-                    if slash_count >= 1:
-                        filtered_anchors.append(a)
-                else:
-                    filtered_anchors.append(a)
+            for a in all_anchors:
+                href = a.get('href', '').strip()
+                if not href:
+                    continue
+
+                # 取得完整 URL
+                full_url = urljoin(cat['url'], href)
+                parsed = urlparse(full_url)
+
+                # 過濾規則：
+                # 1. 必須是同域名或子域名
+                if not parsed.netloc.endswith(base_domain.replace('www.', '')):
+                    continue
+
+                # 2. 排除常見的非文章連結
+                path_lower = parsed.path.lower()
+                excluded_patterns = [
+                    '/category/', '/categories/', '/tag/', '/tags/',
+                    '/author/', '/authors/', '/page/',
+                    '/search', '/login', '/register', '/account',
+                    '/cart', '/checkout', '/product',
+                    '/privacy', '/terms', '/about', '/contact',
+                    '/rss', '/feed', '.xml', '.json',
+                    '/wp-admin', '/wp-content', '/wp-includes',
+                    '/static/', '/assets/', '/images/', '/img/',
+                    '.jpg', '.png', '.gif', '.pdf', '.css', '.js'
+                ]
+                if any(pattern in path_lower for pattern in excluded_patterns):
+                    continue
+
+                # 3. 排除首頁和分類頁（路徑太短）
+                path_parts = [p for p in parsed.path.split('/') if p]
+                if len(path_parts) < 1:
+                    continue
+
+                # 4. 排除沒有標題文字的連結（圖片連結、按鈕等）
+                title = a.get_text(strip=True)
+                if not title or len(title) < 5:
+                    continue
+
+                # 5. 排除導航類文字
+                nav_keywords = ['上一頁', '下一頁', 'next', 'previous', 'prev', '更多', 'more', '首頁', 'home']
+                if title.lower() in nav_keywords or any(kw in title.lower() for kw in nav_keywords if len(kw) > 3):
+                    continue
+
+                filtered_anchors.append(a)
+
             anchors = filtered_anchors
+            print(f"通用過濾後找到 {len(anchors)} 個可能的文章連結")
 
             # 載入既有 feed 項目（若有），以便只加入新的條目
             output_dir = os.environ.get('OUTPUT_DIR', 'docs')
