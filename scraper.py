@@ -266,6 +266,10 @@ def fetch_category_with_playwright(cat):
                 parsed = urlparse(full_url)
 
                 # 過濾規則：
+                # 0. 排除帶有錨點的連結（頁面內跳轉，如「繼續閱讀」）
+                if parsed.fragment:
+                    continue
+
                 # 1. 必須是同域名或子域名
                 if not parsed.netloc.endswith(base_domain.replace('www.', '')):
                     continue
@@ -312,9 +316,13 @@ def fetch_category_with_playwright(cat):
                 # 4. 檢查標題文字
                 title = a.get_text(strip=True)
 
-                # 特殊處理：如果 URL 包含明顯的文章模式（/article/, /\d{4}/\d{2}/），允許沒有標題
+                # 特殊處理：如果 URL 包含明顯的文章模式，允許沒有標題
+                # /article/, /post/, /p/ 關鍵字
                 has_article_pattern = any(pattern in path_lower for pattern in ['/article/', '/post/', '/p/'])
-                has_date_pattern = any(c.isdigit() for c in path_parts[:2]) if len(path_parts) >= 2 else False
+
+                # 或日期路徑模式: /2025/12/24/ (年/月/日)
+                import re
+                has_date_pattern = bool(re.search(r'/\d{4}/\d{1,2}/\d{1,2}/', parsed.path))
 
                 if not has_article_pattern and not has_date_pattern:
                     # 非文章 URL，必須有標題文字
