@@ -14,14 +14,14 @@ python scraper.py                      # 生成 docs/*.xml
 ```
 
 ### RSS 訂閱連結格式
-所有 RSS feed 都透過 GitHub Release 提供，訂閱連結格式：
+所有 RSS feed 都透過 jsDelivr CDN 提供（從 GitHub Release 取得），訂閱連結格式：
 ```
-https://github.com/Shana030/rsslinks/releases/download/latest-feeds/[檔案名稱].xml
+https://cdn.jsdelivr.net/gh/Shana030/rsslinks@latest-feeds/[檔案名稱].xml
 ```
 
 例如：
-- 未來商務｜精選內容：`https://github.com/Shana030/rsslinks/releases/download/latest-feeds/picks.xml`
-- 數位時代｜AI與大數據：`https://github.com/Shana030/rsslinks/releases/download/latest-feeds/bnext_ai.xml`
+- 未來商務｜精選內容：`https://cdn.jsdelivr.net/gh/Shana030/rsslinks@latest-feeds/picks.xml`
+- 數位時代｜AI與大數據：`https://cdn.jsdelivr.net/gh/Shana030/rsslinks@latest-feeds/bnext_ai.xml`
 
 完整訂閱連結列表請參考：https://shana030.github.io/rsslinks/
 
@@ -98,11 +98,13 @@ INITIAL_FETCH=true MAX_ITEMS=20 python scraper.py
 
 ## 架構說明
 
-### 為什麼使用 GitHub Release？
+### 為什麼使用 GitHub Release + jsDelivr CDN？
 - ✅ **乾淨的 repo**：XML 不再產生 commit，git 歷史乾淨
-- ✅ **零成本**：完全使用 GitHub 原生功能，無需外部服務
+- ✅ **零成本**：完全使用 GitHub 原生功能 + 免費 CDN
 - ✅ **穩定的 URL**：`latest-feeds` tag 確保訂閱連結永久有效
 - ✅ **自動更新**：每次 workflow 執行會覆蓋 Release 中的檔案
+- ✅ **正確的 Content-Type**：jsDelivr 提供正確的 XML 標頭，RSS 閱讀器可正常訂閱
+- ✅ **CDN 加速**：全球分發，訪問更快速
 
 ### 檔案結構
 ```

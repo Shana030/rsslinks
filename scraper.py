@@ -543,10 +543,10 @@ def write_index(output_dir='docs'):
     with open(index_path, 'w', encoding='utf-8') as fh:
         fh.write("<!doctype html>\n<html lang=\"zh-TW\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\" />\n  <title>RSS Links - 自動產生的 RSS 訂閱源</title>\n  <style>\n    body { font-family: system-ui, -apple-system, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; line-height: 1.6; }\n    h1 { color: #333; }\n    .feed-item { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; }\n    .feed-item h3 { margin: 0 0 10px 0; }\n    .feed-item a { color: #0066cc; text-decoration: none; font-weight: 500; }\n    .feed-item a:hover { text-decoration: underline; }\n    .source-url { color: #888; font-size: 0.85em; word-break: break-all; }\n    footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 0.9em; }\n  </style>\n</head>\n<body>\n  <h1>RSS Links</h1>\n  <p>自動產生的 RSS 訂閱源</p>\n")
         for feed in feeds_info:
-            # RSS XML 檔案現在存放在 GitHub Release 中，而非 repo
-            release_url = f"https://github.com/Shana030/rsslinks/releases/download/latest-feeds/{feed['file']}"
+            # RSS XML 檔案透過 jsDelivr CDN 從 GitHub Release 提供（正確的 Content-Type）
+            feed_url = f"https://cdn.jsdelivr.net/gh/Shana030/rsslinks@latest-feeds/{feed['file']}"
             fh.write(f"  <div class=\"feed-item\">\n")
-            fh.write(f"    <h3><a href=\"{release_url}\">{feed['name']}</a></h3>\n")
+            fh.write(f"    <h3><a href=\"{feed_url}\">{feed['name']}</a></h3>\n")
             if feed['description']:
                 fh.write(f"    <p>{feed['description']}</p>\n")
             if feed['url']:
