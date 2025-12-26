@@ -46,30 +46,17 @@ jobs:
         run: |
           python scraper.py
 
-      - name: Upload XML files to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: latest-feeds
-          files: docs/*.xml
-          prerelease: true
-          token: ${{ secrets.GITHUB_TOKEN }}
-          body: |
-            Latest RSS feeds generated at ${{ github.event.repository.updated_at }}
-
-            Subscribe to feeds using:
-            https://github.com/${{ github.repository }}/releases/download/latest-feeds/[feed-name].xml
-
-      - name: Commit index.html changes (if any)
+      - name: Commit XML and index.html changes (if any)
         env:
           GIT_COMMITTER_NAME: "github-actions[bot]"
           GIT_COMMITTER_EMAIL: "41898282+github-actions[bot]@users.noreply.github.com"
         run: |
-          if [ -n "$(git status --porcelain docs/index.html)" ]; then
+          if [ -n "$(git status --porcelain docs/)" ]; then
             git config user.name "$GIT_COMMITTER_NAME"
             git config user.email "$GIT_COMMITTER_EMAIL"
 
-            git add docs/index.html
-            git commit -m "Update index.html [skip ci]" || echo "no changes to commit"
+            git add docs/*.xml docs/index.html
+            git commit -m "chore: update RSS feeds [skip ci]" || echo "no changes to commit"
 
             # 嘗試推送，如果失敗則 pull 後重試
             if ! git push origin HEAD:main; then
@@ -78,5 +65,5 @@ jobs:
               git push origin HEAD:main
             fi
           else
-            echo "No changes to index.html."
+            echo "No changes to docs/."
           fi

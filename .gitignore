@@ -38,6 +38,3 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
-
-# RSS XML files (stored in GitHub Releases instead)
-docs/*.xml

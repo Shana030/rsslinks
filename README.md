@@ -1,6 +1,6 @@
 # rsslinks — RSS 訂閱源生成器
 
-這個專案會定期抓取 `categories.json` 中列出的來源，產生 RSS XML 檔案並上傳到 GitHub Release，保持 repo 乾淨無 commit noise。
+這個專案會定期抓取 `categories.json` 中列出的來源，產生 RSS XML 檔案並透過 GitHub Pages 提供訂閱。
 
 ## 快速開始
 
@@ -14,14 +14,14 @@ python scraper.py                      # 生成 docs/*.xml
 ```
 
 ### RSS 訂閱連結格式
-所有 RSS feed 都透過 jsDelivr CDN 提供（從 GitHub Release 取得），訂閱連結格式：
+所有 RSS feed 都透過 GitHub Pages 提供，訂閱連結格式：
 ```
-https://cdn.jsdelivr.net/gh/Shana030/rsslinks@latest-feeds/[檔案名稱].xml
+https://shana030.github.io/rsslinks/[檔案名稱].xml
 ```
 
 例如：
-- 未來商務｜精選內容：`https://cdn.jsdelivr.net/gh/Shana030/rsslinks@latest-feeds/picks.xml`
-- 數位時代｜AI與大數據：`https://cdn.jsdelivr.net/gh/Shana030/rsslinks@latest-feeds/bnext_ai.xml`
+- 未來商務｜精選內容：`https://shana030.github.io/rsslinks/picks.xml`
+- 數位時代｜AI與大數據：`https://shana030.github.io/rsslinks/bnext_ai.xml`
 
 完整訂閱連結列表請參考：https://shana030.github.io/rsslinks/
 
@@ -31,9 +31,8 @@ https://cdn.jsdelivr.net/gh/Shana030/rsslinks@latest-feeds/[檔案名稱].xml
 - GitHub Actions 排程：`0 */6 * * *`（每 6 小時執行一次）
 - 自動執行 `python scraper.py`，抓取**今日發佈**的新文章
 - 只加入尚未存在的條目，已存在的文章會自動跳過
-- 生成的 XML 檔案**自動上傳到 GitHub Release**（tag: `latest-feeds`）
-- **不會 commit XML 到 repo**，保持 git 歷史乾淨
-- 只有當 `categories.json` 變更時才會 commit `index.html`
+- 生成的 XML 檔案**自動 commit 到 repo**（使用 `[skip ci]` 避免觸發循環）
+- 透過 GitHub Pages 自動部署並提供訂閱
 
 ### 手動觸發
 在 GitHub Actions 頁面使用 **Run workflow** 手動執行
@@ -91,20 +90,19 @@ INITIAL_FETCH=true MAX_ITEMS=20 python scraper.py
 - 下次排程會自動重試
 
 ### 檢查 RSS 訂閱連結
-確認 Release 中的 XML 檔案：
-1. 前往 https://github.com/Shana030/rsslinks/releases/tag/latest-feeds
-2. 檢查是否有所有的 XML 檔案
+確認 GitHub Pages 中的 XML 檔案：
+1. 前往 https://shana030.github.io/rsslinks/
+2. 檢查是否有所有的 RSS 訂閱連結
 3. 若缺少檔案，手動觸發 workflow
 
 ## 架構說明
 
-### 為什麼使用 GitHub Release + jsDelivr CDN？
-- ✅ **乾淨的 repo**：XML 不再產生 commit，git 歷史乾淨
-- ✅ **零成本**：完全使用 GitHub 原生功能 + 免費 CDN
-- ✅ **穩定的 URL**：`latest-feeds` tag 確保訂閱連結永久有效
-- ✅ **自動更新**：每次 workflow 執行會覆蓋 Release 中的檔案
-- ✅ **正確的 Content-Type**：jsDelivr 提供正確的 XML 標頭，RSS 閱讀器可正常訂閱
-- ✅ **CDN 加速**：全球分發，訪問更快速
+### 為什麼使用 GitHub Pages？
+- ✅ **零成本**：完全使用 GitHub 原生功能，無需外部服務
+- ✅ **穩定的 URL**：固定的 GitHub Pages URL
+- ✅ **自動更新**：每次 commit 後自動部署
+- ✅ **正確的 Content-Type**：GitHub Pages 提供正確的 XML 標頭，RSS 閱讀器可正常訂閱
+- ⚠️ **會產生 commit**：每次更新會產生一個 commit，但使用 `[skip ci]` 避免觸發循環
 
 ### 檔案結構
 ```
