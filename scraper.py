@@ -303,7 +303,8 @@ def fetch_category_with_playwright(cat):
                     '/rss', '/feed', '.xml', '.json',
                     '/wp-admin', '/wp-content', '/wp-includes',
                     '/static/', '/assets/', '/images/', '/img/',
-                    '.jpg', '.png', '.gif', '.pdf', '.css', '.js'
+                    '.jpg', '.png', '.gif', '.pdf', '.css', '.js',
+                    '/solutions', '/solutions/', '/list?'  # 排除 AI 解方雜貨店和工具清單頁面
                 ]
                 if any(pattern in path_lower for pattern in excluded_patterns):
                     continue
