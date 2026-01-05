@@ -247,11 +247,19 @@ def fetch_category_with_playwright(cat):
 
         try:
             timeout_ms = 60_000
+            # 嘗試使用 networkidle，如果失敗則降級為 domcontentloaded
             try:
                 page.goto(cat['url'], wait_until='networkidle', timeout=timeout_ms)
             except Exception as e:
-                print(f"導覽 {cat['url']} 失敗或超時 ({timeout_ms}ms)，已跳過此 category: {e}")
-                return
+                print(f"使用 networkidle 失敗: {e}")
+                print(f"嘗試使用 domcontentloaded 重新載入...")
+                try:
+                    page.goto(cat['url'], wait_until='domcontentloaded', timeout=timeout_ms)
+                    # 等待額外 3 秒讓動態內容載入
+                    page.wait_for_timeout(3000)
+                except Exception as e2:
+                    print(f"導覽 {cat['url']} 完全失敗 ({timeout_ms}ms)，已跳過此 category: {e2}")
+                    return
 
             html_content = page.content()
             soup = BeautifulSoup(html_content, 'html.parser')
