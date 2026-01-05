@@ -563,11 +563,39 @@ def write_index(output_dir='docs'):
     print(f"已更新 index: {index_path}")
 
 
+def cleanup_orphaned_xml_files(output_dir='docs'):
+    """刪除 docs 中不在 categories.json 的 XML 檔案"""
+    import glob
+
+    # 取得 categories.json 中定義的所有 XML 檔名
+    expected_files = set([cat['file'] for cat in CATEGORIES])
+
+    # 取得 docs 目錄中所有的 XML 檔案
+    xml_files = glob.glob(os.path.join(output_dir, '*.xml'))
+
+    # 檢查並刪除多餘的檔案
+    for xml_path in xml_files:
+        filename = os.path.basename(xml_path)
+        if filename not in expected_files:
+            print(f"刪除不再需要的 XML 檔案: {xml_path}")
+            try:
+                os.remove(xml_path)
+            except Exception as e:
+                print(f"刪除檔案失敗 {xml_path}: {e}")
+
+
 if __name__ == "__main__":
     out_dir = os.environ.get('OUTPUT_DIR', 'docs')
     skip_index = os.environ.get('SKIP_INDEX', 'false').lower() in ('1','true','yes')
+
+    # 執行抓取
     for cat in CATEGORIES:
         fetch_category_with_playwright(cat)
+
+    # 清理多餘的 XML 檔案
+    cleanup_orphaned_xml_files(out_dir)
+
+    # 更新 index.html
     if not skip_index:
         write_index(out_dir)
     else:
