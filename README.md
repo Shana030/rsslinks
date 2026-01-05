@@ -42,9 +42,65 @@ https://shana030.github.io/rsslinks/[檔案名稱].xml
 - 包含每個 feed 的名稱、來源連結和 Release 訂閱連結
 - 完全靜態，只在 `categories.json` 變更時才更新
 
-## categories.json 格式
+## 如何新增 RSS 資源
 
-每個項目需要包含 `xml` 欄位（使用 ASCII 檔名，避免中文）：
+### 步驟 1：更新 categories.json
+在 [categories.json](categories.json) 中新增一個項目：
+```json
+{
+  "name": "顯示名稱（支援中文）",
+  "url": "要抓取的網頁 URL",
+  "xml": "檔案名稱.xml"  // 建議使用英文或拼音，避免中文
+}
+```
+
+範例：
+```json
+{
+  "name": "TechNews 科技新報｜尖端科技",
+  "url": "https://technews.tw/category/cutting-edge/",
+  "xml": "technews_cutting-edge.xml"
+}
+```
+
+### 步驟 2：本地測試（選擇性）
+```bash
+# 啟動虛擬環境
+source .venv/bin/activate
+
+# 執行 scraper 測試新資源
+python scraper.py
+```
+
+### 步驟 3：提交變更
+```bash
+git add categories.json
+git commit -m "新增 RSS 資源: [資源名稱]"
+git push
+```
+
+### 自動化流程
+一旦 `categories.json` 被推送到 GitHub：
+
+1. **自動觸發 workflow**：[regenerate-on-categories-change.yml](.github/workflows/regenerate-on-categories-change.yml) 會自動執行
+2. **生成 XML 檔案**：scraper.py 會為新資源生成對應的 XML 檔案
+3. **更新 index.html**：自動在首頁新增該 RSS 的訂閱連結
+4. **部署到 GitHub Pages**：新的 RSS feed 立即可用
+
+完成後，新的 RSS 訂閱連結會是：
+```
+https://shana030.github.io/rsslinks/[你設定的xml檔名]
+```
+
+### 注意事項
+- ✅ **只需要修改 `categories.json`**，其他檔案會自動生成
+- ✅ `xml` 檔名建議使用英文、數字、底線和連字號
+- ✅ `name` 可以使用任何語言（中文、英文等）
+- ⚠️ 新資源的初次抓取會擷取當日文章，後續每 6 小時自動更新
+
+## categories.json 格式參考
+
+每個項目需要包含三個欄位：
 ```json
 {
   "name": "未來商務｜精選內容",
@@ -74,6 +130,17 @@ INITIAL_FETCH=true MAX_ITEMS=20 python scraper.py
 - **描述**：優先使用 meta description（若與標題相同則視為無描述）
 - **圖片**：優先使用 og:image，回退到文章首張圖片
 - **發佈時間**：解析 JSON-LD、meta 標籤或 `<time>` 標籤，無法解析則使用當前時間
+
+## 內容過濾規則
+
+scraper 會自動排除以下類型的頁面，避免抓到非文章內容：
+- 分類頁、標籤頁（`/category/`, `/tag/`）
+- 作者頁（`/author/`）
+- 系統頁面（登入、註冊、購物車等）
+- 靜態資源（圖片、CSS、JS 檔案）
+- **AI 解方雜貨店和工具清單**（`/solutions/`, `/list?`）
+
+如果需要排除特定路徑，可在 [scraper.py:299-310](scraper.py#L299-L310) 的 `excluded_patterns` 清單中新增規則。
 
 
 ## 故障排除

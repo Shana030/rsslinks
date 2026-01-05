@@ -1,4 +1,4 @@
-name: RSS scrape every 6 hours
+name: FC RSS Updater (Playwright)
 
 on:
   schedule:
