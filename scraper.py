@@ -225,11 +225,19 @@ def fetch_category_with_playwright(cat):
     today_tw = datetime.datetime.now(tw_tz).date()
 
     # 檢查是否為初始化模式（抓取前N篇）
-    initial_fetch = os.environ.get('INITIAL_FETCH', 'false').lower() in ('1', 'true', 'yes')
+    # 如果 XML 檔案不存在，自動啟用初始化模式
+    output_dir = os.environ.get('OUTPUT_DIR', 'docs')
+    output_path = os.path.join(output_dir, cat['file'])
+    auto_initial = not os.path.exists(output_path)
+
+    initial_fetch = auto_initial or os.environ.get('INITIAL_FETCH', 'false').lower() in ('1', 'true', 'yes')
     max_items = int(os.environ.get('MAX_ITEMS', '20')) if initial_fetch else None
 
     if initial_fetch:
-        print(f"初始化模式: 抓取列表頁前 {max_items} 篇文章")
+        if auto_initial:
+            print(f"自動初始化模式（檔案不存在）: 抓取列表頁前 {max_items} 篇文章")
+        else:
+            print(f"初始化模式: 抓取列表頁前 {max_items} 篇文章")
     else:
         print(f"只抓取今日發佈的文章: {today_tw}")
 
@@ -341,9 +349,7 @@ def fetch_category_with_playwright(cat):
             print(f"通用過濾後找到 {len(anchors)} 個可能的文章連結")
 
             # 載入既有 feed 項目（若有），以便只加入新的條目
-            output_dir = os.environ.get('OUTPUT_DIR', 'docs')
             os.makedirs(output_dir, exist_ok=True)
-            output_path = os.path.join(output_dir, cat['file'])
             existing = _load_existing_feed_items(output_path)
             existing_ids = set([e['id'] for e in existing if e.get('id')])
 
