@@ -5,5 +5,6 @@
   {"name": "未來商務｜深度故事", "url": "https://fc.bnext.com.tw/category/stories", "xml": "stories.xml"},
   {"name": "數位時代｜最新新聞", "url": "https://www.bnext.com.tw/articles", "xml": "bnext_articles.xml"},
   {"name": "數位時代｜AI與大數據", "url": "https://www.bnext.com.tw/categories/ai", "xml": "bnext_ai.xml"},
-  {"name": "AI郵報｜每週大事電子報", "url": "https://www.aiposthub.com/tag/mei-zhou-da-shi-dian-zi-bao/", "xml": "aiposthub.xml"}
+  {"name": "AI郵報｜每週大事電子報", "url": "https://www.aiposthub.com/tag/mei-zhou-da-shi-dian-zi-bao/", "xml": "aiposthub.xml"},
+  {"name": "AI郵報｜AI工具教學", "url": "https://www.aiposthub.com/aipost-ai-tool-tutorials/", "xml": "aiposthub_ai_tools.xml"}
 ]
