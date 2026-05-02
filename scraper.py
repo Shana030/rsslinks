@@ -208,6 +208,23 @@ def _load_existing_feed_items(path):
     return items
 
 
+DEFAULT_FEED_ITEM_LIMITS = {
+    # 若某個 RSS 檔案已經累積過多項目，預設保留最新 N 篇並移除最舊的
+    'bnext_articles.xml': 750,
+}
+
+def _get_max_feed_items_for_category(cat):
+    env_value = os.environ.get('MAX_FEED_ITEMS')
+    if env_value:
+        try:
+            limit = int(env_value)
+            if limit > 0:
+                return limit
+        except ValueError:
+            pass
+    return DEFAULT_FEED_ITEM_LIMITS.get(cat.get('file'))
+
+
 def _format_datetime_for_feed(dt):
     if dt is None:
         return datetime.datetime.now(datetime.timezone.utc)
@@ -506,6 +523,11 @@ def fetch_category_with_playwright(cat):
                 else:
                     uniq[key] = it
             items_sorted = sorted(uniq.values(), key=lambda x: x.get('pubDate') or datetime.datetime.now(datetime.timezone.utc), reverse=True)
+            max_feed_items = _get_max_feed_items_for_category(cat)
+            if max_feed_items and len(items_sorted) > max_feed_items:
+                removed_count = len(items_sorted) - max_feed_items
+                print(f"{cat.get('file')} 已超過最大項目數 {max_feed_items}，已移除最舊的 {removed_count} 筆資料")
+                items_sorted = items_sorted[:max_feed_items]
 
             fg = FeedGenerator()
             fg.id(cat['url'])
