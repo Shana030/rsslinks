@@ -252,14 +252,22 @@ def fetch_category_with_playwright(cat):
                 page.goto(cat['url'], wait_until='networkidle', timeout=timeout_ms)
             except Exception as e:
                 print(f"使用 networkidle 失敗: {e}")
-                print(f"嘗試使用 domcontentloaded 重新載入...")
+                print(f"嘗試使用 load 重新載入...")
                 try:
-                    page.goto(cat['url'], wait_until='domcontentloaded', timeout=timeout_ms)
-                    # 等待額外 3 秒讓動態內容載入
-                    page.wait_for_timeout(3000)
-                except Exception as e2:
-                    print(f"導覽 {cat['url']} 完全失敗 ({timeout_ms}ms)，已跳過此 category: {e2}")
-                    return
+                    page.goto(cat['url'], wait_until='load', timeout=timeout_ms)
+                    page.wait_for_load_state('networkidle', timeout=5000)
+                except Exception:
+                    print(f"load 重新載入失敗，改用 domcontentloaded...")
+                    try:
+                        page.goto(cat['url'], wait_until='domcontentloaded', timeout=timeout_ms)
+                        # 等待額外 3 秒讓動態內容載入
+                        page.wait_for_timeout(3000)
+                    except Exception as e2:
+                        print(f"導覽 {cat['url']} 完全失敗 ({timeout_ms}ms)，已跳過此 category: {e2}")
+                        return
+
+            # 等待額外時間讓動態內容穩定，尤其是 SPA 或延遲載入的區塊
+            page.wait_for_timeout(3000)
 
             html_content = page.content()
             soup = BeautifulSoup(html_content, 'html.parser')
@@ -295,13 +303,20 @@ def fetch_category_with_playwright(cat):
                 path_stripped = parsed.path.rstrip('/')
 
                 # 檢查是否為文章 URL 的明顯特徵
-                has_article_keyword = any(kw in path_lower for kw in ['/article/', '/post/', '/p/', '/news/', '/story/'])
+                has_article_keyword = any(kw in path_lower for kw in ['/article/', '/articles/', '/post/', '/p/', '/news/', '/story/'])
 
-                # 如果不包含文章關鍵字，進行嚴格過濾
+                # 排除清單頁與分頁
+                if full_url.rstrip('/') == cat['url'].rstrip('/'):
+                    continue
                 if not has_article_keyword:
+                    path_segments = [p for p in parsed.path.split('/') if p]
+                    if parsed.path.lower() in ['/articles', '/article', '/categories', '/category', '/tags', '/tag'] and len(path_segments) <= 1:
+                        continue
+                    if parsed.query and any(q in parsed.query.lower() for q in ['page=', 'p=', 'offset=']):
+                        continue
+
                     # 排除分類/標籤頁（包含但路徑段數少於3的）
                     if any(kw in path_lower for kw in ['/categories/', '/category/', '/tag/', '/tags/']):
-                        path_segments = [p for p in parsed.path.split('/') if p]
                         # /categories/ai 只有2段 -> 排除
                         # /categories/ai/article/123 有4段 -> 保留（但這種情況少見）
                         if len(path_segments) <= 2:
