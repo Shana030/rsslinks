@@ -27,12 +27,12 @@ https://shana030.github.io/rsslinks/[檔案名稱].xml
 
 ## 自動化行為
 
-### 每 6 小時自動抓取
-- GitHub Actions 排程：`0 */6 * * *`（每 6 小時執行一次）
-- 自動執行 `python scraper.py`，抓取**今日發佈**的新文章
-- 只加入尚未存在的條目，已存在的文章會自動跳過
-- 生成的 XML 檔案**自動 commit 到 repo**（使用 `[skip ci]` 避免觸發循環）
-- 透過 GitHub Pages 自動部署並提供訂閱
+### 自動抓取狀態（已停止）
+- 停止時間：2026-07-22
+- 原本排程：`0 */6 * * *`（每 6 小時執行一次）
+- 原本自動執行 `python scraper.py`，抓取**今日發佈**的新文章
+- 原本會將生成的 XML 檔案**自動 commit 到 repo**，並透過 GitHub Pages 提供訂閱
+- 目前已停用自動排程，僅保留手動執行方式
 
 ### 手動觸發
 在 GitHub Actions 頁面使用 **Run workflow** 手動執行
@@ -96,7 +96,7 @@ https://shana030.github.io/rsslinks/[你設定的xml檔名]
 - ✅ **只需要修改 `categories.json`**，其他檔案會自動生成
 - ✅ `xml` 檔名建議使用英文、數字、底線和連字號
 - ✅ `name` 可以使用任何語言（中文、英文等）
-- ⚠️ 新資源的初次抓取會擷取當日文章，後續每 6 小時自動更新
+- ⚠️ 新資源的初次抓取會擷取當日文章；但自 2026-07-22 起，已停止每 6 小時自動更新，僅保留手動執行
 
 ## categories.json 格式參考
 
@@ -169,7 +169,7 @@ scraper 會自動排除以下類型的頁面，避免抓到非文章內容：
 - ✅ **穩定的 URL**：固定的 GitHub Pages URL
 - ✅ **自動更新**：每次 commit 後自動部署
 - ✅ **正確的 Content-Type**：GitHub Pages 提供正確的 XML 標頭，RSS 閱讀器可正常訂閱
-- ⚠️ **會產生 commit**：每次更新會產生一個 commit，但使用 `[skip ci]` 避免觸發循環
+- ⚠️ **會產生 commit**：過去每次更新會產生一個 commit，但使用 `[skip ci]` 避免觸發循環；自 2026-07-22 起已停止自動更新流程
 
 ### 檔案結構
 ```
@@ -179,5 +179,5 @@ scraper 會自動排除以下類型的頁面，避免抓到非文章內容：
 ├── docs/
 │   └── index.html          # GitHub Pages 首頁（自動生成）
 └── .github/workflows/
-    └── scrape.yml          # 每 6 小時執行的自動化工作流程
+    └── scrape.yml          # 已於 2026-07-22 停止自動排程的工作流程
 ```

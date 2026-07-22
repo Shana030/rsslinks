@@ -1,10 +1,6 @@
 name: Regenerate Feeds (simple)
 
 on:
-  push:
-    paths:
-      - 'categories.json'
-      - 'docs/index.html'
   workflow_dispatch:
 
 permissions:
